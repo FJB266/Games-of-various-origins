@@ -1,331 +1,724 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weaver's Wake: Chronicles</title>
-    <style>
-        body { margin: 0; background-color: #0b0b0d; color: #f5f5f7; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
-        #canvas-container { position: relative; border: 4px solid #3a3a42; border-radius: 8px; }
-        canvas { background-color: #eae6df; display: block; }
-        #hud { width: 800px; margin-bottom: 10px; font-size: 14px; background: #1a1a24; padding: 10px; border-radius: 5px; border: 1px solid #333; }
-        #error-log { color: #ff5555; background: #2a1111; padding: 10px; border-radius: 5px; margin-bottom: 10px; display: none; width: 780px; font-weight: bold; }
-    </style>
+<meta charset="UTF-8">
+<title>Weaver's Wake</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a12;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:'VT323',monospace;color:#e8e8f5;overflow:hidden}
+#hud{width:800px;background:#11111c;border:1px solid #252540;border-radius:4px 4px 0 0;padding:6px 14px;display:flex;justify-content:space-between;align-items:center;font-size:17px}
+#hud-title{color:#7c6af7;font-size:13px;letter-spacing:2px}
+#hud-task{color:#ffd700}
+#hud-party{display:flex;align-items:center;gap:8px;font-size:16px}
+.hpbar{width:90px;height:8px;background:#222;border-radius:3px;overflow:hidden}
+.hpfill{height:100%;background:#4caf50;border-radius:3px;transition:width .2s,background .2s}
+canvas{display:block}
+#controls{width:800px;background:#0d0d18;border:1px solid #252540;border-radius:0 0 4px 4px;padding:5px 0;text-align:center;color:#44445a;font-size:15px}
+</style>
 </head>
 <body>
-
-    <div id="error-log"></div>
-    <div id="hud">ACTIVE TASK: Speak to the Elder Scroll (Yellow square) in the center.</div>
-    <div id="canvas-container">
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
-    </div>
+<div id="hud">
+  <span id="hud-title">WEAVER'S WAKE</span>
+  <span id="hud-task">▶ Find the Elder Scroll</span>
+  <div id="hud-party">
+    <span id="pname">Chromapup Lv1</span>
+    <div class="hpbar"><div class="hpfill" id="hpfill"></div></div>
+    <span id="hptext"></span>
+  </div>
+</div>
+<canvas id="c" width="800" height="560"></canvas>
+<div id="controls">WASD / Arrow Keys — Move &nbsp;|&nbsp; Space / Enter — Talk &nbsp;|&nbsp; ESC — Run (wild only)</div>
 
 <script>
-// --- ON-SCREEN ERROR CATCHER ---
-window.onerror = function(msg, url, line) {
-    const log = document.getElementById('error-log');
-    log.style.display = 'block';
-    log.innerHTML = `ERROR: ${msg} <br> Line: ${line}`;
+// ─────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────
+const T = 48;          // tile size px
+const COLS = 24;       // map columns
+const ROWS = 20;       // map rows
+const VW = 800, VH = 560;
+
+// ─────────────────────────────────────────────
+// INPUT  (simple edge detection)
+// ─────────────────────────────────────────────
+const keys = {}, prevKeys = {};
+window.addEventListener('keydown', e => { keys[e.key] = true; e.preventDefault(); });
+window.addEventListener('keyup',   e => { keys[e.key] = false; });
+function held(k)    { return !!keys[k]; }
+function trig(k)    { return !!keys[k] && !prevKeys[k]; }
+function trigAny(...ks){ return ks.some(k => trig(k)); }
+function heldAny(...ks){ return ks.some(k => held(k)); }
+function flushInput(){ Object.assign(prevKeys, keys); }
+
+// ─────────────────────────────────────────────
+// MAP  (0=grass 1=wall 2=water 3=dirt)
+// ─────────────────────────────────────────────
+// prettier grid — hand-crafted 24×20
+const RAW = [
+ "111111111111111111111111",
+ "100000000000011100000001",
+ "100000000000011100000001",
+ "100033333000011100000001",
+ "100030000300011100033001",
+ "100030010300001100033001",
+ "100030010300000000000001",
+ "100030000300000000000001",
+ "100033333300000000000001",
+ "100000000000000003330001",
+ "100000000011100003030001",
+ "100000000011100003030001",
+ "111111100011100003333001",
+ "100000000011100000000001",
+ "100022200000000000000001",
+ "100022200000000000000001",
+ "100022200000000000000001",
+ "100000000000000000000001",
+ "100000000000000000000001",
+ "111111111111111111111111",
+];
+const MAP = RAW.map(r => r.split('').map(Number));
+
+function walkable(gx, gy) {
+  if (gx < 0 || gy < 0 || gx >= COLS || gy >= ROWS) return false;
+  return MAP[gy][gx] !== 1 && MAP[gy][gx] !== 2;
+}
+
+// ─────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────
+const MOVES = {
+  TACKLE:    { name:'Tackle',      power:18, acc:95, type:'normal',   desc:'A solid hit.' },
+  INK_BLOT:  { name:'Ink Blot',   power:30, acc:90, type:'magic',    desc:'Smothers in ink.' },
+  VOID_BURN: { name:'Void Burn',  power:40, acc:85, type:'fire',     desc:'Scorches with void.' },
+  MEND:      { name:'Mend',       power: 0, acc:100,type:'heal',     desc:'Restore 35 HP.' },
+  SPARK:     { name:'Spark',      power:24, acc:92, type:'electric', desc:'Static shock.' },
+  SHADOW:    { name:'Shadow Fang',power:34, acc:88, type:'dark',     desc:'A dark bite.' },
+};
+const MTYPE_COL = { normal:'#9e9e9e', magic:'#ab47bc', fire:'#ef5350', heal:'#66bb6a', electric:'#ffd54f', dark:'#8e24aa' };
+
+class Mon {
+  constructor(name, maxHp, atk, moveKeys, col, shape) {
+    this.name = name; this.maxHp = maxHp; this.hp = maxHp;
+    this.atk = atk; this.col = col; this.shape = shape;
+    this.moves = moveKeys.map(k => ({ ...MOVES[k] }));
+    this.lv = 1; this.xp = 0;
+  }
+  addXP(n) {
+    this.xp += n;
+    const need = this.lv * 60;
+    if (this.xp >= need) { this.lv++; this.xp -= need; this.maxHp = Math.floor(this.maxHp*1.1); return true; }
     return false;
-};
-
-// --- GAME SYSTEM CONFIGS ---
-const TILE_SIZE = 48;
-const VIEW_WIDTH = 800;
-const VIEW_HEIGHT = 600;
-
-const GameState = { OVERWORLD: 'OVERWORLD', BATTLE: 'BATTLE', DIALOGUE: 'DIALOGUE' };
-let globalState = GameState.OVERWORLD;
-
-// --- INPUT SYSTEM ---
-class InputHandler {
-    constructor() {
-        this.keys = {};
-        this.prevKeys = {};
-        window.addEventListener('keydown', e => this.keys[e.key] = true);
-        window.addEventListener('keyup', e => this.keys[e.key] = false);
-    }
-    update() { this.prevKeys = { ...this.keys }; }
-    isPressed(key) { return this.keys[key] === true; }
-    isTriggered(key) { return this.keys[key] === true && !this.prevKeys[key]; }
-}
-const input = new InputHandler();
-
-// --- DATA LAYER ---
-const MoveDB = {
-    TACKLE: { name: 'Tackle', damage: 15 },
-    INK_BLOT: { name: 'Ink Blot', damage: 25 },
-    VOID_BURN: { name: 'Void Burn', damage: 35 }
-};
-
-const MonsterDB = {
-    CHROMA_PUP: { name: 'Chromapup', maxHp: 80, moves: ['TACKLE'] },
-    VOID_DRAKE: { name: 'Void Drake', maxHp: 140, moves: ['VOID_BURN', 'TACKLE'] },
-    WILD_BLOT: { name: 'Wild Blot', maxHp: 50, moves: ['TACKLE'] }
-};
-
-class RuntimeMonster {
-    constructor(key) {
-        const proto = MonsterDB[key];
-        this.name = proto.name;
-        this.maxHp = proto.maxHp;
-        this.hp = this.maxHp;
-        this.moves = proto.moves.map(m => MoveDB[m]);
-    }
+  }
+  heal(n) { this.hp = Math.min(this.maxHp, this.hp + n); }
 }
 
-// --- PLAYER ---
+// ─────────────────────────────────────────────
+// PLAYER
+// ─────────────────────────────────────────────
+// All movement is purely grid-based. px/py are ONLY used for camera & drawing.
+// They are always gx*T, gy*T — no interpolation.
 const player = {
-    gx: 5, gy: 5,
-    px: 5 * TILE_SIZE, py: 5 * TILE_SIZE,
-    tx: 5 * TILE_SIZE, ty: 5 * TILE_SIZE,
-    isMoving: false, speed: 4, direction: 'down',
-    monsters: [new RuntimeMonster('CHROMA_PUP')],
-    hasShard: false
+  gx: 2, gy: 3,
+  get px() { return this.gx * T; },
+  get py() { return this.gy * T; },
+  dir: 'down',
+  mon: new Mon('Chromapup', 100, 1.0, ['INK_BLOT','SPARK','MEND','TACKLE'], '#42a5f5', 'dog'),
 };
 
-// --- WORLD PROPERTIES ---
-const world = { width: 30, height: 30 };
-const camera = { x: 0, y: 0 };
-const collisions = Array(world.height).fill(null).map(() => Array(world.width).fill(0));
-
-// Build map barriers
-for(let y=0; y<world.height; y++) {
-    for(let x=0; x<world.width; x++) {
-        if(x === 0 || x === world.width-1 || y === 0 || y === world.height-1) collisions[y][x] = 1;
-        if(x === 10 && y > 2 && y < 12) collisions[y][x] = 1; // Wall obstacle
-    }
+// Camera (clamped pixel offset)
+const cam = { x: 0, y: 0 };
+function updateCam() {
+  cam.x = Math.max(0, Math.min(COLS*T - VW, player.px - VW/2 + T/2));
+  cam.y = Math.max(0, Math.min(ROWS*T - VH, player.py - VH/2 + T/2));
 }
 
+// ─────────────────────────────────────────────
 // NPCs
-const npcs = [
-    { id: 'SCROLL', gx: 6, gy: 4, name: 'Elder Scroll', color: '#b58900', dialogue: ["Greetings, Last Drop.", "The layout architecture is breaking down.", "Go East past the wall barrier and defeat the Red Guardian!"] },
-    { id: 'GUARDIAN', gx: 18, gy: 8, name: 'Red Guardian', color: '#dc322f', dialogue: ["You want to fix the canvas?", "Let's see if your code parameters hold up in battle!"] }
+// ─────────────────────────────────────────────
+const NPCS = [
+  {
+    id:'SCROLL', gx:5, gy:4, col:'#ffd700', label:'Elder Scroll',
+    dlg:[
+      ["Elder Scroll","The Canvas is unravelling, young Weaver."],
+      ["Elder Scroll","A Void Drake shattered the Loom Shard — reality frays without it."],
+      ["Elder Scroll","Travel east. The Red Guardian guards the shard deep in the ruins."],
+      ["Elder Scroll","The Weave depends on you. Go."],
+    ]
+  },
+  {
+    id:'SAGE', gx:18, gy:4, col:'#66bb6a', label:'Hermit Sage',
+    dlg:[
+      ["Hermit Sage","Weary traveller... let me restore your companion."],
+    ],
+    healer: true
+  },
+  {
+    id:'GUARDIAN', gx:18, gy:13, col:'#ef5350', label:'Red Guardian',
+    dlg:[
+      ["Red Guardian","So you crossed the glitch fields to reach me."],
+      ["Red Guardian","The Void Drake's corruption consumes me. I cannot resist it."],
+      ["Red Guardian","Defeat the Drake within me — free us both!"],
+    ],
+    battleKey: 'VOID_DRAKE'
+  },
 ];
 
-// --- BATTLE SYSTEM ---
-const battle = {
-    active: false, playerMon: null, enemyMon: null, cursor: 0, log: "", phase: 'SELECT'
-};
-
-function startBattle(enemyKey) {
-    globalState = GameState.BATTLE;
-    battle.playerMon = player.monsters[0];
-    battle.enemyMon = new RuntimeMonster(enemyKey);
-    battle.cursor = 0;
-    battle.phase = 'SELECT';
-    battle.log = `A wild ${battle.enemyMon.name} blocked your path!`;
-}
-
-// --- DIALOGUE SYSTEM ---
-const dialogue = { speaker: "", lines: [], index: 0, visible: "" };
-function startDialogue(npcObj) {
-    globalState = GameState.DIALOGUE;
-    dialogue.speaker = npcObj.name;
-    dialogue.lines = npcObj.dialogue;
-    dialogue.index = 0;
-    dialogue.visible = npcObj.dialogue[0];
-}
-
-// --- ENGINE REVOLUTIONS ---
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const hud = document.getElementById('hud');
-
+// ─────────────────────────────────────────────
+// GAME STATE
+// ─────────────────────────────────────────────
+const S = { OW:0, DLG:1, BATTLE:2, WIN:3 };
+let state = S.OW;
 let questStep = 0;
 
+// ─────────────────────────────────────────────
+// DIALOGUE
+// ─────────────────────────────────────────────
+const dlg = { npc:null, lines:[], idx:0, charT:0, cooldown:0 };
+
+function openDlg(npc) {
+  state = S.DLG;
+  dlg.npc = npc; dlg.lines = npc.dlg; dlg.idx = 0; dlg.charT = 0; dlg.cooldown = 10;
+}
+
+function advanceDlg() {
+  if (dlg.cooldown > 0) return;
+  const fullLen = dlg.lines[dlg.idx][1].length;
+  // If text still animating, jump to end first
+  if (dlg.charT < fullLen) { dlg.charT = fullLen; return; }
+  dlg.idx++;
+  if (dlg.idx >= dlg.lines.length) {
+    finishDlg();
+  } else {
+    dlg.charT = 0; dlg.cooldown = 6;
+  }
+}
+
+function finishDlg() {
+  const npc = dlg.npc;
+  state = S.OW;
+  if (npc.healer) {
+    player.mon.hp = player.mon.maxHp;
+    setTask("Companion fully healed!");
+  }
+  if (npc.id === 'SCROLL' && questStep === 0) {
+    questStep = 1;
+    setTask("Travel east — find the Red Guardian.");
+  }
+  if (npc.id === 'GUARDIAN' && questStep === 1) {
+    startBattle('VOID_DRAKE', true);
+    return;
+  }
+  if (npc.id === 'SCROLL' && questStep >= 2) {
+    state = S.WIN;
+  }
+}
+
+// ─────────────────────────────────────────────
+// BATTLE
+// ─────────────────────────────────────────────
+const ENEMY_DEFS = {
+  WILD_BLOT:   new Mon('Wild Blot',    60,  0.8, ['TACKLE','INK_BLOT'],          '#78909c','blob'),
+  EMBER_WISP:  new Mon('Ember Wisp',   75,  0.9, ['SPARK','TACKLE'],             '#ffa726','wisp'),
+  GLITCH_HOUND:new Mon('Glitch Hound',100,  1.1, ['SHADOW','TACKLE','INK_BLOT'], '#ce93d8','dog'),
+  VOID_DRAKE:  new Mon('Void Drake',  180,  1.3, ['VOID_BURN','SHADOW','TACKLE'],'#ef5350','drake'),
+};
+
+const B = {
+  enemy: null, isBoss: false,
+  cursor: 0,
+  phase: 'SELECT',   // SELECT | PMSG | ETURN | EMSG | DEAD | PFAINT
+  log:'', sub:'',
+  flashE:0, flashP:0, shake:0,
+};
+
+function freshEnemy(key) {
+  const d = ENEMY_DEFS[key];
+  return new Mon(d.name, d.maxHp, d.atk, d.moves.map(m=>m.name.replace(/ /g,'_').toUpperCase()), d.col, d.shape);
+}
+
+// Because Mon constructor takes move keys not names, build a separate clone helper
+function cloneMon(key) {
+  const src = ENEMY_DEFS[key];
+  const m = Object.create(Mon.prototype);
+  m.name = src.name; m.maxHp = src.maxHp; m.hp = src.maxHp;
+  m.atk = src.atk; m.col = src.col; m.shape = src.shape;
+  m.moves = src.moves.map(mv => ({...mv}));
+  m.lv = 1; m.xp = 0;
+  return m;
+}
+
+function startBattle(key, boss=false) {
+  state = S.BATTLE;
+  B.enemy = cloneMon(key);
+  B.isBoss = boss;
+  B.cursor = 0;
+  B.phase = 'SELECT';
+  B.log = `A ${B.enemy.name} appeared!`;
+  B.sub = 'Choose a move.';
+  B.flashE = B.flashP = B.shake = 0;
+}
+
+function playerAttack() {
+  const mv = player.mon.moves[B.cursor];
+  if (mv.type === 'heal') {
+    player.mon.heal(35);
+    B.log = `${player.mon.name} used ${mv.name}!`;
+    B.sub = 'Restored 35 HP.';
+    B.flashP = 8;
+    B.phase = 'ETURN';
+    return;
+  }
+  const hit = Math.random()*100 < mv.acc;
+  if (hit) {
+    const dmg = Math.round(mv.power * player.mon.atk * (0.85 + Math.random()*0.3));
+    B.enemy.hp = Math.max(0, B.enemy.hp - dmg);
+    B.log = `${player.mon.name} used ${mv.name}!`;
+    B.sub = `Dealt ${dmg} damage.`;
+    B.shake = 8; B.flashE = 8;
+  } else {
+    B.log = `${player.mon.name} used ${mv.name}...`;
+    B.sub = 'But it missed!';
+  }
+  if (B.enemy.hp <= 0) {
+    const xp = Math.round(B.enemy.maxHp * 0.35 * B.enemy.atk);
+    const lvUp = player.mon.addXP(xp);
+    B.log = `${B.enemy.name} was defeated!`;
+    B.sub = lvUp ? `Gained ${xp} XP — ${player.mon.name} levelled up!` : `Gained ${xp} XP.`;
+    B.phase = 'DEAD';
+  } else {
+    B.phase = 'ETURN';
+  }
+}
+
+function enemyAttack() {
+  const mv = B.enemy.moves[Math.floor(Math.random()*B.enemy.moves.length)];
+  const hit = Math.random()*100 < mv.acc;
+  if (hit) {
+    const dmg = Math.round(mv.power * B.enemy.atk * (0.85 + Math.random()*0.3));
+    player.mon.hp = Math.max(0, player.mon.hp - dmg);
+    B.log = `${B.enemy.name} used ${mv.name}!`;
+    B.sub = `Took ${dmg} damage.`;
+    B.shake = 8; B.flashP = 8;
+  } else {
+    B.log = `${B.enemy.name} used ${mv.name}...`;
+    B.sub = 'It missed!';
+  }
+  B.phase = player.mon.hp <= 0 ? 'PFAINT' : 'EMSG';
+  if (B.phase === 'PFAINT') { B.log = `${player.mon.name} fainted!`; B.sub = 'Press Enter to continue...'; }
+  if (B.phase === 'EMSG') { B.sub += '  Choose your next move.'; }
+}
+
+// ─────────────────────────────────────────────
+// HUD
+// ─────────────────────────────────────────────
+const hudTask  = document.getElementById('hud-task');
+const hpFill   = document.getElementById('hpfill');
+const hpText   = document.getElementById('hptext');
+const pNameEl  = document.getElementById('pname');
+function setTask(t) { hudTask.textContent = '▶ ' + t; }
+function refreshHUD() {
+  const m = player.mon;
+  const pct = m.hp / m.maxHp * 100;
+  hpFill.style.width = pct + '%';
+  hpFill.style.background = pct > 50 ? '#4caf50' : pct > 25 ? '#ffc107' : '#f44336';
+  hpText.textContent = `${m.hp}/${m.maxHp}`;
+  pNameEl.textContent = `${m.name} Lv${m.lv}`;
+}
+
+// ─────────────────────────────────────────────
+// CANVAS
+// ─────────────────────────────────────────────
+const cv  = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+// ─────────────────────────────────────────────
+// DRAWING HELPERS
+// ─────────────────────────────────────────────
+function drawTile(gx, gy, t) {
+  const x = gx*T - cam.x, y = gy*T - cam.y;
+  // Base colour
+  const cols = ['#2e5c2e','#1c1c2c','#1255a0','#5c3d1e'];
+  ctx.fillStyle = cols[t] || '#2e5c2e';
+  ctx.fillRect(x, y, T, T);
+  // Subtle details
+  if (t === 0) { // grass
+    ctx.fillStyle = 'rgba(0,0,0,0.06)';
+    ctx.fillRect(x, y, T, T);
+  }
+  if (t === 3) { // dirt path
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.fillRect(x+4, y+10, T-8, 4);
+    ctx.fillRect(x+4, y+28, T-8, 4);
+  }
+  if (t === 2) { // water shimmer
+    ctx.fillStyle = `rgba(100,180,255,${0.06 + 0.04*Math.sin(Date.now()/700 + gx)})`;
+    ctx.fillRect(x, y, T, T);
+  }
+  if (t === 1) { // wall
+    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+    ctx.fillRect(x, y, T/2, T/2);
+  }
+}
+
+// Monster sprite renderer
+function sprite(x, y, w, h, col, shape, flip) {
+  ctx.save();
+  if (flip) { ctx.translate(x+w, y); ctx.scale(-1,1); x=0; y=0; }
+  ctx.fillStyle = col;
+  ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+  ctx.lineWidth = 1.5;
+
+  if (shape === 'dog') {
+    // body
+    ctx.beginPath(); ctx.ellipse(x+w*.5,y+h*.58,w*.3,h*.2,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    // head
+    ctx.beginPath(); ctx.ellipse(x+w*.73,y+h*.38,w*.19,h*.17,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    // legs
+    [[.24,.7],[.38,.7],[.56,.7],[.7,.7]].forEach(([lx])=>{
+      ctx.fillRect(x+w*lx,y+h*.72,w*.1,h*.22);
+    });
+    // ear
+    ctx.beginPath(); ctx.moveTo(x+w*.66,y+h*.23); ctx.lineTo(x+w*.6,y+h*.08); ctx.lineTo(x+w*.74,y+h*.22); ctx.closePath(); ctx.fill();
+    // tail
+    ctx.lineWidth=3; ctx.strokeStyle=col;
+    ctx.beginPath(); ctx.moveTo(x+w*.22,y+h*.52); ctx.quadraticCurveTo(x+w*.04,y+h*.3,x+w*.1,y+h*.18); ctx.stroke();
+    // eye
+    ctx.fillStyle='#222'; ctx.beginPath(); ctx.arc(x+w*.77,y+h*.36,w*.035,0,Math.PI*2); ctx.fill();
+  } else if (shape === 'drake') {
+    // wings
+    ctx.globalAlpha = .55;
+    ctx.beginPath(); ctx.moveTo(x+w*.42,y+h*.32); ctx.lineTo(x+w*.04,y+h*.1); ctx.lineTo(x+w*.18,y+h*.52); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x+w*.58,y+h*.32); ctx.lineTo(x+w*.96,y+h*.1); ctx.lineTo(x+w*.82,y+h*.52); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+    // body
+    ctx.beginPath(); ctx.ellipse(x+w*.5,y+h*.58,w*.27,h*.2,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    // neck + head
+    ctx.beginPath(); ctx.ellipse(x+w*.5,y+h*.33,w*.14,h*.2,-.3,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    // tail
+    ctx.lineWidth=4; ctx.strokeStyle=col;
+    ctx.beginPath(); ctx.moveTo(x+w*.76,y+h*.64); ctx.quadraticCurveTo(x+w*.98,y+h*.82,x+w*.88,y+h*.96); ctx.stroke();
+    // eye
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(x+w*.52,y+h*.29,w*.05,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#111'; ctx.beginPath(); ctx.arc(x+w*.53,y+h*.29,w*.025,0,Math.PI*2); ctx.fill();
+  } else if (shape === 'blob') {
+    ctx.beginPath(); ctx.arc(x+w/2,y+h/2,w*.37,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x+w*.3,y+h*.32,w*.14,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+w*.7,y+h*.36,w*.11,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(x+w*.38,y+h*.48,w*.065,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+w*.62,y+h*.48,w*.065,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#222';
+    ctx.beginPath(); ctx.arc(x+w*.4,y+h*.48,w*.03,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+w*.64,y+h*.48,w*.03,0,Math.PI*2); ctx.fill();
+  } else if (shape === 'wisp') {
+    for(let r=3;r>0;r--){
+      ctx.globalAlpha = 0.18*r;
+      ctx.beginPath(); ctx.arc(x+w/2,y+h/2,w*.22*r,0,Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha=1;
+    ctx.beginPath(); ctx.arc(x+w/2,y+h/2,w*.24,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.7)';
+    ctx.beginPath(); ctx.arc(x+w*.44,y+h*.44,w*.06,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function hpBar(x,y,w,hp,max,label) {
+  const pct = Math.max(0,hp/max);
+  const col = pct>.5?'#4caf50':pct>.25?'#ffc107':'#f44336';
+  ctx.fillStyle='#0a0a14'; ctx.fillRect(x,y,w,10);
+  ctx.fillStyle=col; ctx.fillRect(x,y,w*pct,10);
+  ctx.strokeStyle='#333'; ctx.lineWidth=1; ctx.strokeRect(x,y,w,10);
+  ctx.fillStyle='#ccc'; ctx.font='14px VT323,monospace';
+  ctx.fillText(`${label}  ${hp}/${max}`, x, y-4);
+}
+
+function xpBar(x,y,w,mon) {
+  const need=mon.lv*60;
+  ctx.fillStyle='#111'; ctx.fillRect(x,y,w,5);
+  ctx.fillStyle='#7c6af7'; ctx.fillRect(x,y,w*(mon.xp/need),5);
+  ctx.strokeStyle='#333'; ctx.lineWidth=1; ctx.strokeRect(x,y,w,5);
+  ctx.fillStyle='#666'; ctx.font='13px VT323,monospace';
+  ctx.fillText(`XP ${mon.xp}/${need}  Lv${mon.lv}`, x, y+15);
+}
+
+// ─────────────────────────────────────────────
+// DRAW OVERWORLD
+// ─────────────────────────────────────────────
+function drawOW() {
+  // visible tile range
+  const gx0 = Math.floor(cam.x/T);
+  const gy0 = Math.floor(cam.y/T);
+  const gx1 = Math.min(COLS, gx0 + Math.ceil(VW/T) + 1);
+  const gy1 = Math.min(ROWS, gy0 + Math.ceil(VH/T) + 1);
+
+  for (let gy=gy0; gy<gy1; gy++)
+    for (let gx=gx0; gx<gx1; gx++)
+      drawTile(gx, gy, MAP[gy][gx]);
+
+  // NPCs
+  NPCS.forEach(n => {
+    const sx = n.gx*T - cam.x, sy = n.gy*T - cam.y;
+    sprite(sx+3, sy+3, T-6, T-6, n.col, 'blob', false);
+    // label
+    ctx.font='12px VT323,monospace';
+    const tw = ctx.measureText(n.label).width;
+    ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(sx+T/2-tw/2-2, sy-16, tw+4, 14);
+    ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.fillText(n.label, sx+T/2, sy-5); ctx.textAlign='left';
+  });
+
+  // Player
+  sprite(player.gx*T - cam.x + 3, player.gy*T - cam.y + 3, T-6, T-6, '#42a5f5', 'dog', player.dir==='right');
+
+  // Shard indicator
+  if (player.mon.hp < player.mon.maxHp && questStep > 0) {
+    // small info — skip, don't clutter OW
+  }
+}
+
+// ─────────────────────────────────────────────
+// DRAW DIALOGUE
+// ─────────────────────────────────────────────
+function drawDlg() {
+  drawOW();
+  const [speaker, text] = dlg.lines[dlg.idx];
+  const visible = text.slice(0, Math.floor(dlg.charT));
+
+  ctx.fillStyle='rgba(6,6,16,.97)';
+  ctx.fillRect(20, VH-120, VW-40, 100);
+  ctx.strokeStyle='#7c6af7'; ctx.lineWidth=1.5;
+  ctx.strokeRect(20, VH-120, VW-40, 100);
+
+  ctx.fillStyle='#7c6af7'; ctx.font='bold 14px VT323,monospace';
+  ctx.fillText(speaker.toUpperCase(), 36, VH-96);
+  ctx.fillStyle='#e8e8f5'; ctx.font='19px VT323,monospace';
+  ctx.fillText(visible, 36, VH-68);
+
+  if (Math.floor(dlg.charT) >= text.length && Math.floor(Date.now()/450)%2===0) {
+    ctx.fillStyle='#7c6af7'; ctx.font='15px VT323,monospace';
+    ctx.fillText('▼', VW-44, VH-26);
+  }
+}
+
+// ─────────────────────────────────────────────
+// DRAW BATTLE
+// ─────────────────────────────────────────────
+function drawBattle() {
+  // BG
+  const g = ctx.createLinearGradient(0,0,0,VH);
+  g.addColorStop(0,'#0c0c1a'); g.addColorStop(1,'#190a1a');
+  ctx.fillStyle=g; ctx.fillRect(0,0,VW,VH);
+
+  // subtle grid
+  ctx.strokeStyle='rgba(124,106,247,.04)';
+  for(let i=0;i<VW;i+=40){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,VH);ctx.stroke();}
+  for(let i=0;i<VH;i+=40){ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(VW,i);ctx.stroke();}
+
+  const sx = B.shake>0?(Math.random()-.5)*5:0;
+  ctx.save(); ctx.translate(sx,0);
+
+  // Enemy
+  const ea = B.flashE>0 && Math.floor(B.flashE/2)%2===0 ? .25 : 1;
+  ctx.globalAlpha=ea;
+  sprite(450, 55, 190, 155, B.enemy.col, B.enemy.shape, false);
+  ctx.globalAlpha=1;
+  hpBar(450, 220, 200, B.enemy.hp, B.enemy.maxHp, B.enemy.name);
+
+  // Player
+  const pa = B.flashP>0 && Math.floor(B.flashP/2)%2===0 ? .25 : 1;
+  ctx.globalAlpha=pa;
+  sprite(110, 190, 170, 135, player.mon.col, player.mon.shape, true);
+  ctx.globalAlpha=1;
+  hpBar(40, 345, 220, player.mon.hp, player.mon.maxHp, player.mon.name);
+  xpBar(40, 362, 220, player.mon);
+
+  ctx.restore();
+
+  // Battle panel
+  ctx.fillStyle='#08080f'; ctx.fillRect(0, 395, VW, VH-395);
+  ctx.strokeStyle='#222238'; ctx.lineWidth=1; ctx.strokeRect(0, 395, VW, VH-395);
+
+  if (B.phase === 'SELECT') {
+    const moves = player.mon.moves;
+    moves.forEach((mv, i) => {
+      const cx = 50 + (i%2)*310, cy = 418 + Math.floor(i/2)*70;
+      const sel = B.cursor===i;
+      ctx.fillStyle = sel?'rgba(124,106,247,.16)':'rgba(255,255,255,.03)';
+      ctx.fillRect(cx-6,cy-20,280,52);
+      if(sel){ctx.strokeStyle='#7c6af7';ctx.lineWidth=1;ctx.strokeRect(cx-6,cy-20,280,52);}
+      ctx.fillStyle = sel?'#fff':'#8888aa'; ctx.font='18px VT323,monospace';
+      ctx.fillText((sel?'▶ ':'')+mv.name, cx, cy);
+      ctx.fillStyle=MTYPE_COL[mv.type]||'#888'; ctx.font='14px VT323,monospace';
+      ctx.fillText(mv.type.toUpperCase()+'  '+mv.desc, cx, cy+17);
+    });
+    if (!B.isBoss) {
+      ctx.fillStyle='#44444a'; ctx.font='14px VT323,monospace';
+      ctx.fillText('[ESC] Run', VW-90, VH-8);
+    }
+  } else {
+    ctx.fillStyle='#e8e8f5'; ctx.font='21px VT323,monospace';
+    ctx.fillText(B.log, 40, 442);
+    ctx.fillStyle='#8888aa'; ctx.font='17px VT323,monospace';
+    ctx.fillText(B.sub, 40, 468);
+    const blink = Math.floor(Date.now()/480)%2===0;
+    if (blink) {
+      ctx.fillStyle='#7c6af7'; ctx.font='15px VT323,monospace';
+      ctx.fillText('▼ Press Space / Enter', VW-220, VH-10);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// DRAW WIN
+// ─────────────────────────────────────────────
+function drawWin() {
+  ctx.fillStyle='#08080f'; ctx.fillRect(0,0,VW,VH);
+  // stars
+  for(let i=0;i<100;i++){
+    const sx=(i*137.5)%VW, sy=(i*179.3)%VH;
+    ctx.fillStyle=`rgba(255,255,255,${.15+.35*Math.sin(Date.now()/900+i)})`;
+    ctx.fillRect(sx,sy,1.5,1.5);
+  }
+  ctx.textAlign='center';
+  ctx.shadowColor='#7c6af7'; ctx.shadowBlur=24;
+  ctx.fillStyle='#e8e8f5'; ctx.font='bold 13px VT323,monospace';
+  ctx.fillText('THE WEAVE IS RESTORED', VW/2, 180);
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#ffd700'; ctx.font='22px VT323,monospace';
+  ctx.fillText('You defeated the Void Drake and recovered the Loom Shard.', VW/2, 244);
+  ctx.fillText('Reality holds — for now.', VW/2, 272);
+  ctx.fillStyle='#9090b0'; ctx.font='17px VT323,monospace';
+  ctx.fillText(`${player.mon.name}  Lv${player.mon.lv}  ·  Journey complete`, VW/2, 320);
+  ctx.fillStyle='rgba(255,255,255,.35)'; ctx.font='15px VT323,monospace';
+  ctx.fillText('[ Refresh to play again ]', VW/2, 420);
+  ctx.textAlign='left';
+}
+
+// ─────────────────────────────────────────────
+// MINIMAP
+// ─────────────────────────────────────────────
+function drawMinimap() {
+  const mw=96, mh=76, ox=VW-mw-8, oy=8, s=mw/COLS;
+  ctx.fillStyle='rgba(6,6,18,.82)'; ctx.fillRect(ox,oy,mw,mh);
+  for(let gy=0;gy<ROWS;gy++)
+    for(let gx=0;gx<COLS;gx++){
+      const t=MAP[gy][gx];
+      ctx.fillStyle=t===1?'#1a1a28':t===2?'#1255a0':t===3?'#5c3d1e':'#2e5c2e';
+      ctx.fillRect(ox+gx*s, oy+gy*s, s-.5, s-.5);
+    }
+  NPCS.forEach(n=>{
+    ctx.fillStyle=n.col;
+    ctx.fillRect(ox+n.gx*s-1,oy+n.gy*s-1,3,3);
+  });
+  ctx.fillStyle='#fff'; ctx.fillRect(ox+player.gx*s-1.5,oy+player.gy*s-1.5,3,3);
+  ctx.strokeStyle='rgba(124,106,247,.4)'; ctx.lineWidth=1; ctx.strokeRect(ox,oy,mw,mh);
+}
+
+// ─────────────────────────────────────────────
+// UPDATE
+// ─────────────────────────────────────────────
 function update() {
-    if (globalState === GameState.OVERWORLD) {
-        if (!player.isMoving) {
-            let dx = 0, dy = 0;
-            if (input.isPressed('ArrowUp') || input.isPressed('w')) { dy = -1; player.direction = 'up'; }
-            else if (input.isPressed('ArrowDown') || input.isPressed('s')) { dy = 1; player.direction = 'down'; }
-            else if (input.isPressed('ArrowLeft') || input.isPressed('a')) { dx = -1; player.direction = 'left'; }
-            else if (input.isPressed('ArrowRight') || input.isPressed('d')) { dx = 1; player.direction = 'right'; }
+  if (state === S.WIN) return;
 
-            if (dx !== 0 || dy !== 0) {
-                let targetX = player.gx + dx;
-                let targetY = player.gy + dy;
-                if (targetX >= 0 && targetX < world.width && targetY >= 0 && targetY < world.height) {
-                    if (collisions[targetY][targetX] === 0) {
-                        player.gx = targetX;
-                        player.gy = targetY;
-                        player.tx = targetX * TILE_SIZE;
-                        player.ty = targetY * TILE_SIZE;
-                        player.isMoving = true;
-                    }
-                }
-            }
+  if (state === S.OW) {
+    let dx=0, dy=0;
+    if      (trigAny('ArrowUp','w'))    { dy=-1; player.dir='up'; }
+    else if (trigAny('ArrowDown','s'))  { dy= 1; player.dir='down'; }
+    else if (trigAny('ArrowLeft','a'))  { dx=-1; player.dir='left'; }
+    else if (trigAny('ArrowRight','d')) { dx= 1; player.dir='right'; }
 
-            // Talk Action trigger
-            if (input.isTriggered('Enter') || input.isTriggered(' ')) {
-                let fx = player.gx, fy = player.gy;
-                if (player.direction === 'up') fy--;
-                if (player.direction === 'down') fy++;
-                if (player.direction === 'left') fx--;
-                if (player.direction === 'right') fx++;
+    if (dx||dy) {
+      const nx=player.gx+dx, ny=player.gy+dy;
+      if (walkable(nx,ny)) {
+        player.gx=nx; player.gy=ny;
+        updateCam();
 
-                const target = npcs.find(n => n.gx === fx && n.gy === fy);
-                if (target) startDialogue(target);
-            }
-        } else {
-            if (player.px < player.tx) player.px += player.speed;
-            if (player.px > player.tx) player.px -= player.speed;
-            if (player.py < player.ty) player.py += player.speed;
-            if (player.py > player.ty) player.py -= player.speed;
-
-            if (player.px === player.tx && player.py === player.ty) {
-                player.isMoving = false;
-                // Wild step encounter rate
-                if (Math.random() < 0.05) startBattle('WILD_BLOT');
-            }
-        }
-
-        // Camera calculations
-        camera.x = player.px - VIEW_WIDTH / 2;
-        camera.y = player.py - VIEW_HEIGHT / 2;
-        camera.x = Math.max(0, Math.min(world.width * TILE_SIZE - VIEW_WIDTH, camera.x));
-        camera.y = Math.max(0, Math.min(world.height * TILE_SIZE - VIEW_HEIGHT, camera.y));
-
-    } else if (globalState === GameState.DIALOGUE) {
-        if (input.isTriggered('Enter') || input.isTriggered(' ')) {
-            dialogue.index++;
-            if (dialogue.index >= dialogue.lines.length) {
-                globalState = GameState.OVERWORLD;
-                // Story Progression hooks
-                if (dialogue.speaker === "Elder Scroll" && questStep === 0) {
-                    questStep = 1;
-                    hud.innerText = "ACTIVE TASK: Go East, challenge the Red Guardian.";
-                } else if (dialogue.speaker === "Red Guardian" && questStep === 1) {
-                    startBattle('VOID_DRAKE');
-                }
-            } else {
-                dialogue.visible = dialogue.lines[dialogue.index];
-            }
-        }
-    } else if (globalState === GameState.BATTLE) {
-        if (battle.phase === 'SELECT') {
-            if (input.isTriggered('ArrowDown') || input.isTriggered('s') || input.isTriggered('ArrowUp') || input.isTriggered('w')) {
-                battle.cursor = (battle.cursor + 1) % battle.playerMon.moves.length;
-            }
-            if (input.isTriggered('Enter') || input.isTriggered(' ')) {
-                let move = battle.playerMon.moves[battle.cursor];
-                battle.enemyMon.hp = Math.max(0, battle.enemyMon.hp - move.damage);
-                battle.log = `${battle.playerMon.name} used ${move.name}! Hit for ${move.damage}.`;
-                battle.phase = 'MESSAGE';
-            }
-        } else if (battle.phase === 'MESSAGE') {
-            if (input.isTriggered('Enter') || input.isTriggered(' ')) {
-                if (battle.enemyMon.hp <= 0) {
-                    globalState = GameState.OVERWORLD;
-                    if (battle.enemyMon.name === "Void Drake") {
-                        player.hasShard = true;
-                        hud.innerText = "ACTIVE TASK: Shard recovered! Speak to the Elder Scroll!";
-                        const scroll = npcs.find(n => n.id === 'SCROLL');
-                        scroll.dialogue = ["Unbelievable calculations!", "The framework layout is fully restored. You have beaten the glitch!"];
-                    }
-                } else {
-                    // Enemy retaliation turn
-                    let emove = battle.enemyMon.moves[0];
-                    player.monsters[0].hp = Math.max(0, player.monsters[0].hp - emove.damage);
-                    battle.log = `Enemy ${battle.enemyMon.name} used ${emove.name}! Took ${emove.damage} damage.`;
-                    battle.phase = 'ENEMY_MESSAGE';
-                }
-            }
-        } else if (battle.phase === 'ENEMY_MESSAGE') {
-            if (input.isTriggered('Enter') || input.isTriggered(' ')) {
-                if (player.monsters[0].hp <= 0) {
-                    alert("Your monster fainted! Refresh to compile again.");
-                    window.location.reload();
-                } else {
-                    battle.phase = 'SELECT';
-                    battle.log = "What will you do?";
-                }
-            }
-        }
+      }
     }
+
+    if (trigAny('Enter',' ')) {
+      let fx=player.gx, fy=player.gy;
+      if(player.dir==='up')    fy--;
+      if(player.dir==='down')  fy++;
+      if(player.dir==='left')  fx--;
+      if(player.dir==='right') fx++;
+      const npc=NPCS.find(n=>n.gx===fx&&n.gy===fy);
+      if(npc) openDlg(npc);
+    }
+
+  } else if (state === S.DLG) {
+    if(dlg.cooldown>0) dlg.cooldown--;
+    dlg.charT = Math.min(dlg.charT + 1.8, dlg.lines[dlg.idx][1].length);
+    if (trigAny('Enter',' ')) advanceDlg();
+
+  } else if (state === S.BATTLE) {
+    if(B.shake>0) B.shake--;
+    if(B.flashE>0) B.flashE--;
+    if(B.flashP>0) B.flashP--;
+
+    if (B.phase==='SELECT') {
+      if(trigAny('ArrowUp','w','ArrowLeft','a'))   B.cursor=(B.cursor-1+player.mon.moves.length)%player.mon.moves.length;
+      if(trigAny('ArrowDown','s','ArrowRight','d')) B.cursor=(B.cursor+1)%player.mon.moves.length;
+      if(trigAny('Enter',' ')) playerAttack();
+      if(trig('Escape')&&!B.isBoss){
+        if(Math.random()<.5){ state=S.OW; setTask("Got away!"); }
+        else { B.log="Couldn't escape!"; B.sub=''; B.phase='ETURN'; }
+      }
+    } else if (B.phase==='PMSG'||B.phase==='ETURN') {
+      if(trigAny('Enter',' ')) enemyAttack();
+    } else if (B.phase==='EMSG') {
+      if(trigAny('Enter',' ')){ B.phase='SELECT'; B.log=''; B.sub='Choose a move.'; }
+    } else if (B.phase==='DEAD') {
+      if(trigAny('Enter',' ')){
+        if(B.isBoss){
+          questStep=2;
+          const sc=NPCS.find(n=>n.id==='SCROLL');
+          sc.dlg=[
+            ["Elder Scroll","You've done it, Weaver."],
+            ["Elder Scroll","The Loom Shard pulses with recovered light."],
+            ["Elder Scroll","The Canvas stabilises. The world is saved."],
+            ["Elder Scroll","Rest — the Weave will remember your name."],
+          ];
+          setTask("Return to the Elder Scroll!");
+        }
+        state=S.OW;
+      }
+    } else if (B.phase==='PFAINT') {
+      if(trigAny('Enter',' ')){
+        player.mon.hp=Math.floor(player.mon.maxHp*.35);
+        state=S.OW;
+        setTask("Defeated... recover and try again.");
+      }
+    }
+  }
+
+  refreshHUD();
 }
 
+// ─────────────────────────────────────────────
+// DRAW
+// ─────────────────────────────────────────────
 function draw() {
-    ctx.clearRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
-
-    if (globalState === GameState.OVERWORLD || globalState === GameState.DIALOGUE) {
-        ctx.save();
-        ctx.translate(-camera.x, -camera.y);
-
-        // Draw structural Grid
-        for(let y=0; y<world.height; y++) {
-            for(let x=0; x<world.width; x++) {
-                if (collisions[y][x] === 1) {
-                    ctx.fillStyle = '#2c2c35';
-                    ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE-1, TILE_SIZE-1);
-                } else {
-                    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
-                    ctx.strokeRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
-                }
-            }
-        }
-
-        // Draw NPCs
-        npcs.forEach(n => {
-            ctx.fillStyle = n.color;
-            ctx.fillRect(n.gx*TILE_SIZE + 4, n.gy*TILE_SIZE + 4, TILE_SIZE-8, TILE_SIZE-8);
-        });
-
-        // Draw Player
-        ctx.fillStyle = '#268bd2';
-        ctx.fillRect(player.px + 6, player.py + 6, TILE_SIZE-12, TILE_SIZE-12);
-
-        ctx.restore();
-
-        if (globalState === GameState.DIALOGUE) {
-            ctx.fillStyle = "rgba(10, 10, 15, 0.95)";
-            ctx.fillRect(40, 440, 720, 120);
-            ctx.strokeStyle = "#268bd2";
-            ctx.strokeRect(40, 440, 720, 120);
-            
-            ctx.fillStyle = "#268bd2"; ctx.font = "bold 14px monospace";
-            ctx.fillText(dialogue.speaker.toUpperCase(), 60, 470);
-            ctx.fillStyle = "#fff"; ctx.font = "16px monospace";
-            ctx.fillText(dialogue.visible, 60, 510);
-        }
-    } else if (globalState === GameState.BATTLE) {
-        ctx.fillStyle = '#15151c';
-        ctx.fillRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
-
-        // Status bars
-        ctx.fillStyle = '#22222b';
-        ctx.fillRect(60, 60, 260, 80);
-        ctx.fillRect(480, 260, 260, 80);
-
-        ctx.fillStyle = '#fff'; ctx.font = "14px monospace";
-        ctx.fillText(battle.enemyMon.name, 80, 90);
-        ctx.fillText(`HP: ${battle.enemyMon.hp}/${battle.enemyMon.maxHp}`, 80, 115);
-
-        ctx.fillText(battle.playerMon.name, 500, 290);
-        ctx.fillText(`HP: ${battle.playerMon.hp}/${battle.playerMon.maxHp}`, 500, 315);
-
-        // Action Menu Box
-        ctx.fillStyle = '#050508'; ctx.fillRect(0, 420, 800, 180);
-        ctx.fillStyle = '#fff'; ctx.font = '16px monospace';
-
-        if (battle.phase === 'SELECT') {
-            battle.playerMon.moves.forEach((m, idx) => {
-                ctx.fillStyle = (battle.cursor === idx) ? '#859900' : '#8a8a93';
-                ctx.fillText(`> ${m.name}`, 100, 480 + (idx * 30));
-            });
-        } else {
-            ctx.fillText(battle.log, 80, 490);
-        }
-    }
+  ctx.clearRect(0,0,VW,VH);
+  if(state===S.WIN)        { drawWin(); }
+  else if(state===S.OW)    { drawOW(); drawMinimap(); }
+  else if(state===S.DLG)   { drawDlg(); drawMinimap(); }
+  else if(state===S.BATTLE){ drawBattle(); }
 }
 
+// ─────────────────────────────────────────────
+// LOOP
+// ─────────────────────────────────────────────
 function loop() {
-    update();
-    draw();
-    input.update();
-    requestAnimationFrame(loop);
+  update();
+  draw();
+  flushInput();
+  requestAnimationFrame(loop);
 }
+
+updateCam();
+refreshHUD();
 loop();
 </script>
 </body>
