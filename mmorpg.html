@@ -35,8 +35,8 @@ canvas{display:block}
 // CONSTANTS
 // ─────────────────────────────────────────────
 const T = 48;          // tile size px
-const COLS = 24;       // map columns
-const ROWS = 20;       // map rows
+const COLS = 36;       // map columns
+const ROWS = 28;       // map rows
 const VW = 800, VH = 560;
 
 // ─────────────────────────────────────────────
@@ -52,30 +52,37 @@ function heldAny(...ks){ return ks.some(k => held(k)); }
 function flushInput(){ Object.assign(prevKeys, keys); }
 
 // ─────────────────────────────────────────────
-// MAP  (0=grass 1=wall 2=water 3=dirt)
+// MAP  (0=grass 1=wall 2=water 3=dirt 4=tall grass)
 // ─────────────────────────────────────────────
-// prettier grid — hand-crafted 24×20
 const RAW = [
- "111111111111111111111111",
- "100000000000011100000001",
- "100000000000011100000001",
- "100033333000011100000001",
- "100030000300011100033001",
- "100030010300001100033001",
- "100030010300000000000001",
- "100030000300000000000001",
- "100033333300000000000001",
- "100000000000000003330001",
- "100000000011100003030001",
- "100000000011100003030001",
- "111111100011100003333001",
- "100000000011100000000001",
- "100022200000000000000001",
- "100022200000000000000001",
- "100022200000000000000001",
- "100000000000000000000001",
- "100000000000000000000001",
- "111111111111111111111111",
+ "111111111111111111111111111111111111",
+ "100000000000000000000000000000000001",
+ "100000003333330000000000000000000001",
+ "100000003000030000011111110000000001",
+ "100033333000030000010000010000000001",
+ "100030000000030000010000010000000001",
+ "100030100000030000010000010004440001",
+ "100030100000000000010000010044440001",
+ "100030000000000000011111110044440001",
+ "100033333000000000000000000004440001",
+ "100000000000444000000000000000000001",
+ "100000000044444400000000000000000001",
+ "111111100044444400000000000044000001",
+ "100000000044444400000000000444400001",
+ "100022200000444000000000000440000001",
+ "100022200000000000000000000000000001",
+ "100022200000000001111110000000000001",
+ "100000000000000001000010000000000001",
+ "100000000000000001000010000000000001",
+ "100000000000000001000010000000000001",
+ "100004444000000001000010000000000001",
+ "100004444000000001111110000000000001",
+ "100004444000000000000000000000000001",
+ "100000000000000000000000000000000001",
+ "100000000000000000444444000000000001",
+ "100000000000000000444444000000000001",
+ "100000000000000000000000000000000001",
+ "111111111111111111111111111111111111",
 ];
 const MAP = RAW.map(r => r.split('').map(Number));
 
@@ -107,8 +114,16 @@ class Mon {
   addXP(n) {
     this.xp += n;
     const need = this.lv * 60;
-    if (this.xp >= need) { this.lv++; this.xp -= need; this.maxHp = Math.floor(this.maxHp*1.1); return true; }
-    return false;
+    if (this.xp >= need) {
+      const oldLv = this.lv;
+      this.lv++; this.xp -= need;
+      const hpGain = Math.floor(this.maxHp * 0.1);
+      this.maxHp += hpGain;
+      this.hp = Math.min(this.hp + hpGain, this.maxHp);
+      this.atk = parseFloat((this.atk + 0.05).toFixed(2));
+      return { oldLv, newLv: this.lv, hpGain };
+    }
+    return null;
   }
   heal(n) { this.hp = Math.min(this.maxHp, this.hp + n); }
 }
@@ -147,14 +162,14 @@ const NPCS = [
     ]
   },
   {
-    id:'SAGE', gx:18, gy:4, col:'#66bb6a', label:'Hermit Sage',
+    id:'SAGE', gx:28, gy:4, col:'#66bb6a', label:'Hermit Sage',
     dlg:[
       ["Hermit Sage","Weary traveller... let me restore your companion."],
     ],
     healer: true
   },
   {
-    id:'GUARDIAN', gx:18, gy:13, col:'#ef5350', label:'Red Guardian',
+    id:'GUARDIAN', gx:28, gy:17, col:'#ef5350', label:'Red Guardian',
     dlg:[
       ["Red Guardian","So you crossed the glitch fields to reach me."],
       ["Red Guardian","The Void Drake's corruption consumes me. I cannot resist it."],
@@ -167,8 +182,10 @@ const NPCS = [
 // ─────────────────────────────────────────────
 // GAME STATE
 // ─────────────────────────────────────────────
-const S = { OW:0, DLG:1, BATTLE:2, WIN:3 };
-let state = S.OW;
+const S = { TITLE:0, OW:1, DLG:2, BATTLE:3, WIN:4, LEVELUP:5, MP:6 };
+let state = S.TITLE;
+let titleCursor = 0; // 0=singleplayer 1=multiplayer
+let lvUpData = null; // {oldLv, newLv, hpGain}
 let questStep = 0;
 
 // ─────────────────────────────────────────────
@@ -229,7 +246,7 @@ const B = {
   cursor: 0,
   phase: 'SELECT',   // SELECT | PMSG | ETURN | EMSG | DEAD | PFAINT
   log:'', sub:'',
-  flashE:0, flashP:0, shake:0,
+  flashE:0, flashP:0, shake:0, xpGained:0, lvUp:null,
 };
 
 function freshEnemy(key) {
@@ -282,9 +299,10 @@ function playerAttack() {
   }
   if (B.enemy.hp <= 0) {
     const xp = Math.round(B.enemy.maxHp * 0.35 * B.enemy.atk);
-    const lvUp = player.mon.addXP(xp);
+    const lu = player.mon.addXP(xp);
+    B.xpGained = xp; B.lvUp = lu;
     B.log = `${B.enemy.name} was defeated!`;
-    B.sub = lvUp ? `Gained ${xp} XP — ${player.mon.name} levelled up!` : `Gained ${xp} XP.`;
+    B.sub = lu ? `Gained ${xp} XP — Level Up!` : `Gained ${xp} XP.`;
     B.phase = 'DEAD';
   } else {
     B.phase = 'ETURN';
@@ -358,6 +376,19 @@ function drawTile(gx, gy, t) {
   if (t === 1) { // wall
     ctx.fillStyle = 'rgba(255,255,255,0.03)';
     ctx.fillRect(x, y, T/2, T/2);
+  }
+  if (t === 4) { // tall grass — draw on top of base green
+    ctx.fillStyle = '#1e4d1e';
+    ctx.fillRect(x, y, T, T);
+    ctx.fillStyle = '#2d6e2d';
+    // blades
+    for(let b=0;b<5;b++){
+      const bx=x+4+b*9, by=y+T;
+      ctx.fillRect(bx, by-18, 3, 18);
+      ctx.fillRect(bx-2, by-12, 3, 12);
+    }
+    ctx.fillStyle='rgba(0,0,0,0.1)';
+    ctx.fillRect(x,y,T,T);
   }
 }
 
@@ -502,6 +533,118 @@ function drawDlg() {
 }
 
 // ─────────────────────────────────────────────
+// DRAW TITLE
+// ─────────────────────────────────────────────
+function drawTitle() {
+  ctx.fillStyle='#07070f'; ctx.fillRect(0,0,VW,VH);
+  // stars
+  for(let i=0;i<120;i++){
+    const sx=(i*137.5)%VW, sy=(i*93.7)%VH;
+    const pulse=0.2+0.4*Math.sin(Date.now()/1000+i*0.7);
+    ctx.fillStyle=`rgba(255,255,255,${pulse})`;
+    ctx.fillRect(sx,sy,1.5,1.5);
+  }
+  // floating runes
+  const t=Date.now()/1000;
+  const runes=['◈','◇','◆','⬡','⬢','✦','✧'];
+  for(let i=0;i<7;i++){
+    const rx=80+i*100, ry=VH*0.72+Math.sin(t*0.7+i)*18;
+    ctx.fillStyle=`rgba(124,106,247,${0.15+0.1*Math.sin(t+i)})`;
+    ctx.font='22px VT323,monospace';
+    ctx.fillText(runes[i], rx, ry);
+  }
+  // glow title
+  ctx.textAlign='center';
+  ctx.shadowColor='#7c6af7'; ctx.shadowBlur=40;
+  ctx.fillStyle='#fff'; ctx.font='bold 28px VT323,monospace';
+  ctx.fillText("WEAVER'S WAKE", VW/2, 155);
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#7c6af7'; ctx.font='16px VT323,monospace';
+  ctx.fillText('C H R O N I C L E S', VW/2, 182);
+  // divider
+  ctx.strokeStyle='rgba(124,106,247,0.3)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(VW/2-160,200); ctx.lineTo(VW/2+160,200); ctx.stroke();
+  // menu options
+  const opts = ['► SINGLE PLAYER', '► MULTIPLAYER'];
+  opts.forEach((label, i) => {
+    const sel = titleCursor===i;
+    const oy = 270+i*58;
+    if(sel){
+      ctx.fillStyle='rgba(124,106,247,0.18)';
+      ctx.fillRect(VW/2-140, oy-28, 280, 42);
+      ctx.strokeStyle='#7c6af7'; ctx.lineWidth=1;
+      ctx.strokeRect(VW/2-140, oy-28, 280, 42);
+    }
+    ctx.fillStyle = sel?'#fff':'#555577';
+    ctx.font=`${sel?22:19}px VT323,monospace`;
+    ctx.fillText(label, VW/2, oy);
+  });
+  ctx.fillStyle='#333355'; ctx.font='14px VT323,monospace';
+  ctx.fillText('W / S or ↑ ↓ to select   ·   Enter or Space to confirm', VW/2, 430);
+  ctx.textAlign='left';
+}
+
+// ─────────────────────────────────────────────
+// DRAW MULTIPLAYER SCREEN
+// ─────────────────────────────────────────────
+function drawMP() {
+  ctx.fillStyle='#07070f'; ctx.fillRect(0,0,VW,VH);
+  for(let i=0;i<80;i++){
+    const sx=(i*191.3)%VW, sy=(i*113.7)%VH;
+    ctx.fillStyle=`rgba(255,255,255,${0.1+0.15*Math.sin(Date.now()/800+i)})`;
+    ctx.fillRect(sx,sy,1.5,1.5);
+  }
+  ctx.textAlign='center';
+  ctx.shadowColor='#e040fb'; ctx.shadowBlur=30;
+  ctx.fillStyle='#e8e8f5'; ctx.font='bold 22px VT323,monospace';
+  ctx.fillText('MULTIPLAYER', VW/2, 180);
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#555577'; ctx.font='20px VT323,monospace';
+  ctx.fillText('Coming Soon', VW/2, 230);
+  ctx.fillStyle='#333350'; ctx.font='17px VT323,monospace';
+  ctx.fillText('Online co-op and PvP battles are in development.', VW/2, 290);
+  ctx.fillText('Check back in a future update!', VW/2, 316);
+  const blink=Math.floor(Date.now()/600)%2===0;
+  if(blink){ ctx.fillStyle='#7c6af7'; ctx.font='15px VT323,monospace'; ctx.fillText('[ Press Enter or ESC to go back ]', VW/2, 400); }
+  ctx.textAlign='left';
+}
+
+// ─────────────────────────────────────────────
+// DRAW LEVEL UP
+// ─────────────────────────────────────────────
+function drawLevelUp() {
+  drawOW();
+  const d = lvUpData;
+  // overlay
+  ctx.fillStyle='rgba(6,6,18,0.88)'; ctx.fillRect(0,0,VW,VH);
+  // box
+  const bx=VW/2-180, by=VH/2-120, bw=360, bh=240;
+  ctx.fillStyle='#0e0e1e'; ctx.fillRect(bx,by,bw,bh);
+  ctx.strokeStyle='#ffd700'; ctx.lineWidth=2; ctx.strokeRect(bx,by,bw,bh);
+  // inner accent line
+  ctx.strokeStyle='rgba(124,106,247,0.3)'; ctx.lineWidth=1;
+  ctx.strokeRect(bx+4,by+4,bw-8,bh-8);
+  ctx.textAlign='center';
+  // star burst glow
+  ctx.shadowColor='#ffd700'; ctx.shadowBlur=20;
+  ctx.fillStyle='#ffd700'; ctx.font='bold 22px VT323,monospace';
+  ctx.fillText('✦  LEVEL UP!  ✦', VW/2, by+44);
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#e8e8f5'; ctx.font='19px VT323,monospace';
+  ctx.fillText(`${player.mon.name}`, VW/2, by+80);
+  ctx.fillStyle='#7c6af7'; ctx.font='17px VT323,monospace';
+  ctx.fillText(`Lv ${d.oldLv}  →  Lv ${d.newLv}`, VW/2, by+108);
+  // stats gained
+  ctx.fillStyle='#4caf50'; ctx.font='16px VT323,monospace';
+  ctx.fillText(`Max HP  +${d.hpGain}  (now ${player.mon.maxHp})`, VW/2, by+142);
+  ctx.fillStyle='#ffd54f';
+  ctx.fillText(`Attack  +0.05  (now ${player.mon.atk.toFixed(2)})`, VW/2, by+165);
+  const blink=Math.floor(Date.now()/500)%2===0;
+  if(blink){ ctx.fillStyle='#555577'; ctx.font='14px VT323,monospace'; ctx.fillText('[ Press Space or Enter ]', VW/2, by+208); }
+  ctx.textAlign='left';
+}
+
+// ─────────────────────────────────────────────
 // DRAW BATTLE
 // ─────────────────────────────────────────────
 function drawBattle() {
@@ -550,7 +693,8 @@ function drawBattle() {
       ctx.fillStyle = sel?'#fff':'#8888aa'; ctx.font='18px VT323,monospace';
       ctx.fillText((sel?'▶ ':'')+mv.name, cx, cy);
       ctx.fillStyle=MTYPE_COL[mv.type]||'#888'; ctx.font='14px VT323,monospace';
-      ctx.fillText(mv.type.toUpperCase()+'  '+mv.desc, cx, cy+17);
+      const pwrTxt = mv.type==='heal' ? 'HEAL  '+mv.desc : mv.type.toUpperCase()+'  PWR:'+mv.power+'  '+mv.desc;
+      ctx.fillText(pwrTxt, cx, cy+17);
     });
     if (!B.isBoss) {
       ctx.fillStyle='#44444a'; ctx.font='14px VT323,monospace';
@@ -599,7 +743,7 @@ function drawWin() {
 // MINIMAP
 // ─────────────────────────────────────────────
 function drawMinimap() {
-  const mw=96, mh=76, ox=VW-mw-8, oy=8, s=mw/COLS;
+  const mw=108, mh=84, ox=VW-mw-8, oy=8, s=mw/COLS;
   ctx.fillStyle='rgba(6,6,18,.82)'; ctx.fillRect(ox,oy,mw,mh);
   for(let gy=0;gy<ROWS;gy++)
     for(let gx=0;gx<COLS;gx++){
@@ -619,6 +763,23 @@ function drawMinimap() {
 // UPDATE
 // ─────────────────────────────────────────────
 function update() {
+  if (state === S.TITLE) {
+    if(trigAny('ArrowUp','w')) titleCursor=0;
+    if(trigAny('ArrowDown','s')) titleCursor=1;
+    if(trigAny('Enter',' ')){
+      if(titleCursor===0){ state=S.OW; updateCam(); refreshHUD(); }
+      else { state=S.MP; }
+    }
+    return;
+  }
+  if (state === S.MP) {
+    if(trigAny('Enter',' ','Escape')) state=S.TITLE;
+    return;
+  }
+  if (state === S.LEVELUP) {
+    if(trigAny('Enter',' ')){ lvUpData=null; state=S.OW; }
+    return;
+  }
   if (state === S.WIN) return;
 
   if (state === S.OW) {
@@ -633,17 +794,16 @@ function update() {
       if (walkable(nx,ny)) {
         player.gx=nx; player.gy=ny;
         updateCam();
-
+        if (MAP[ny][nx]===4 && Math.random()<.15) {
+          const wilds=['WILD_BLOT','EMBER_WISP','GLITCH_HOUND'];
+          startBattle(wilds[Math.floor(Math.random()*3)], false);
+        }
       }
     }
 
     if (trigAny('Enter',' ')) {
-      let fx=player.gx, fy=player.gy;
-      if(player.dir==='up')    fy--;
-      if(player.dir==='down')  fy++;
-      if(player.dir==='left')  fx--;
-      if(player.dir==='right') fx++;
-      const npc=NPCS.find(n=>n.gx===fx&&n.gy===fy);
+      const adj=[{gx:player.gx,gy:player.gy},{gx:player.gx,gy:player.gy-1},{gx:player.gx,gy:player.gy+1},{gx:player.gx-1,gy:player.gy},{gx:player.gx+1,gy:player.gy}];
+      const npc=NPCS.find(n=>adj.some(c=>c.gx===n.gx&&c.gy===n.gy));
       if(npc) openDlg(npc);
     }
 
@@ -682,7 +842,8 @@ function update() {
           ];
           setTask("Return to the Elder Scroll!");
         }
-        state=S.OW;
+        if(B.lvUp){ lvUpData = B.lvUp; state=S.LEVELUP; }
+        else { state=S.OW; }
       }
     } else if (B.phase==='PFAINT') {
       if(trigAny('Enter',' ')){
@@ -701,10 +862,13 @@ function update() {
 // ─────────────────────────────────────────────
 function draw() {
   ctx.clearRect(0,0,VW,VH);
-  if(state===S.WIN)        { drawWin(); }
+  if(state===S.TITLE)      { drawTitle(); }
+  else if(state===S.MP)    { drawMP(); }
+  else if(state===S.WIN)   { drawWin(); }
   else if(state===S.OW)    { drawOW(); drawMinimap(); }
   else if(state===S.DLG)   { drawDlg(); drawMinimap(); }
   else if(state===S.BATTLE){ drawBattle(); }
+  else if(state===S.LEVELUP){ drawLevelUp(); }
 }
 
 // ─────────────────────────────────────────────
@@ -717,8 +881,6 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-updateCam();
-refreshHUD();
 loop();
 </script>
 </body>
