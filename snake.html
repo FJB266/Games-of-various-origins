@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Snake Replica</title>
+    <style>
+        :root {
+            --bg-dark-green: #4a752c;
+            --bg-light-green: #578a34;
+            --top-bar-color: #4a752c;
+            --menu-bg: #578a34;
+            --text-color: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #2b2b2b;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            color: var(--text-color);
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #top-bar {
+            width: 600px;
+            height: 60px;
+            background-color: var(--top-bar-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #canvas-container {
+            position: relative;
+            width: 600px;
+            height: 520px;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* Menu UI Overlay */
+        #menu-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(74, 117, 44, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            transition: opacity 0.3s ease;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 32px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .menu-section {
+            margin: 15px 0;
+            text-align: center;
+            width: 80%;
+        }
+
+        .menu-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            color: #e0e0e0;
+        }
+
+        .options-row {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background-color: #3b6122;
+            border: 2px solid transparent;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.2s;
+            text-decoration: none; /* Keeps the home link styled like a button */
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .btn:hover {
+            background-color: #4c7a2d;
+        }
+
+        .btn.active {
+            background-color: #ffffff;
+            color: #4a752c;
+            border-color: #ffffff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        #play-btn {
+            background-color: #e28743;
+            font-size: 24px;
+            padding: 12px 40px;
+            border-radius: 30px;
+            margin-top: 20px;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        #play-btn:hover {
+            background-color: #ee9653;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="top-bar">
+        <a href="index.html" class="btn" style="font-size: 16px; padding: 6px 14px;">🏠 Home</a>
+        <div class="stat">🍎 <span id="score">0</span></div>
+        <div class="stat">🏆 <span id="high-score">0</span></div>
+        <button class="btn" id="gear-btn" style="font-size: 16px; padding: 6px 14px;">⚙️ Menu</button>
+    </div>
+
+    <div id="canvas-container">
+        <div id="menu-overlay">
+            <h2>Google Snake Customizer</h2>
+            
+            <div class="menu-section">
+                <div class="menu-title">Game Mode</div>
+                <div class="options-row" id="modes-row">
+                    <button class="btn active" data-type="mode" data-value="classic">Classic</button>
+                    <button class="btn" data-type="mode" data-value="portal">Portal</button>
+                    <button class="btn" data-type="mode" data-value="walls">Walls</button>
+                    <button class="btn" data-type="mode" data-value="speed">Speedy</button>
+                </div>
+            </div>
+
+            <div class="menu-section">
+                <div class="menu-title">Snake Skin</div>
+                <div class="options-row" id="colors-row">
+                    <button class="btn active" data-type="color" data-value="#4285F4">Google Blue</button>
+                    <button class="btn" data-type="color" data-value="#34A853">Classic Green</button>
+                    <button class="btn" data-type="color" data-value="#EA4335">Spicy Red</button>
+                    <button class="btn" data-type="color" data-value="#FABABC">Bubblegum Pink</button>
+                </div>
+            </div>
+
+            <div class="menu-section">
+                <div class="menu-title">Target Fruit</div>
+                <div class="options-row" id="fruits-row">
+                    <button class="btn active" data-type="fruit" data-value="🍎">🍎 Apple</button>
+                    <button class="btn" data-type="fruit" data-value="🍌">🍌 Banana</button>
+                    <button class="btn" data-type="fruit" data-value="🍇">🍇 Grapes</button>
+                    <button class="btn" data-type="fruit" data-value="🍍">🍍 Pineapple</button>
+                </div>
+            </div>
+
+            <button id="play-btn" class="btn">PLAY</button>
+        </div>
+
+        <canvas id="gameCanvas" width="600" height="520"></canvas>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // UI elements
+    const menuOverlay = document.getElementById('menu-overlay');
+    const playBtn = document.getElementById('play-btn');
+    const gearBtn = document.getElementById('gear-btn');
+    const scoreEl = document.getElementById('score');
+    const highScoreEl = document.getElementById('high-score');
+
+    // Grid details
+    const tileSize = 40;
+    const cols = canvas.width / tileSize;
+    const rows = canvas.height / tileSize;
+
+    // Default configuration properties
+    let config = {
+        mode: 'classic',
+        snakeColor: '#4285F4',
+        fruitEmoji: '🍎',
+        speed: 130
+    };
+
+    // State mechanics
+    let snake = [];
+    let direction = { x: 1, y: 0 };
+    let nextDirection = { x: 1, y: 0 };
+    let food = { x: 0, y: 0 };
+    let portalExit = null; 
+    let obstacles = [];
+    let score = 0;
+    let highScore = 0;
+    let gameInterval = null;
+    let isGameOver = true;
+
+    // Setup interactive configuration buttons
+    document.querySelectorAll('.options-row .btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const parent = e.target.parentElement;
+            parent.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+
+            const type = e.target.dataset.type;
+            const value = e.target.dataset.value;
+
+            if (type === 'mode') config.mode = value;
+            if (type === 'color') config.snakeColor = value;
+            if (type === 'fruit') config.fruitEmoji = value;
+        });
+    });
+
+    playBtn.addEventListener('click', startGame);
+    gearBtn.addEventListener('click', () => {
+        menuOverlay.classList.remove('hidden');
+        clearInterval(gameInterval);
+    });
+
+    // Control mechanics
+    window.addEventListener('keydown', e => {
+        switch (e.key) {
+            case 'ArrowUp':
+            case 'w':
+            case 'W':
+                if (direction.y === 0) nextDirection = { x: 0, y: -1 };
+                break;
+            case 'ArrowDown':
+            case 's':
+            case 'S':
+                if (direction.y === 0) nextDirection = { x: 0, y: 1 };
+                break;
+            case 'ArrowLeft':
+            case 'a':
+            case 'A':
+                if (direction.x === 0) nextDirection = { x: -1, y: 0 };
+                break;
+            case 'ArrowRight':
+            case 'd':
+            case 'D':
+                if (direction.x === 0) nextDirection = { x: 1, y: 0 };
+                break;
+        }
+    });
+
+    function startGame() {
+        menuOverlay.classList.add('hidden');
+        isGameOver = false;
+        score = 0;
+        scoreEl.innerText = score;
+        
+        // Build base positions
+        snake = [
+            { x: 3, y: 6 },
+            { x: 2, y: 6 },
+            { x: 1, y: 6 }
+        ];
+        direction = { x: 1, y: 0 };
+        nextDirection = { x: 1, y: 0 };
+        
+        obstacles = [];
+        if (config.mode === 'walls') {
+            // Generate inner boundary walls
+            for (let i = 4; i < cols - 4; i++) {
+                obstacles.push({ x: i, y: 3 });
+                obstacles.push({ x: i, y: rows - 4 });
+            }
+        }
+
+        // Adjust speed based on chosen profile mode
+        let currentSpeed = config.speed;
+        if (config.mode === 'speed') currentSpeed = 70;
+
+        spawnFood();
+        
+        clearInterval(gameInterval);
+        gameInterval = setInterval(gameLoop, currentSpeed);
+    }
+
+    function spawnFood() {
+        let valid = false;
+        while (!valid) {
+            food.x = Math.floor(Math.random() * cols);
+            food.y = Math.floor(Math.random() * rows);
+            
+            // Check collisions with safe layout boundaries
+            valid = !snake.some(segment => segment.x === food.x && segment.y === food.y) &&
+                    !obstacles.some(obs => obs.x === food.x && obs.y === food.y);
+        }
+
+        // Feature Portal engine parameters
+        if (config.mode === 'portal') {
+            portalExit = {
+                x: Math.floor(Math.random() * cols),
+                y: Math.floor(Math.random() * rows)
+            };
+            while (portalExit.x === food.x && portalExit.y === food.y || snake.some(s => s.x === portalExit.x && s.y === portalExit.y)) {
+                portalExit.x = Math.floor(Math.random() * cols);
+                portalExit.y = Math.floor(Math.random() * rows);
+            }
+        }
+    }
+
+    function gameLoop() {
+        if (isGameOver) return;
+
+        direction = nextDirection;
+        const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+
+        // Process grid border collision constraints
+        if (head.x < 0 || head.x >= cols || head.y < 0 || head.y >= rows) {
+            endGame();
+            return;
+        }
+
+        // Obstacle checks (Walls variant strategy)
+        if (obstacles.some(obs => obs.x === head.x && obs.y === head.y)) {
+            endGame();
+            return;
+        }
+
+        // Self-collision constraints
+        if (snake.some((segment, index) => index !== 0 && segment.x === head.x && segment.y === head.y)) {
+            endGame();
+            return;
+        }
+
+        // Front-facing head injection
+        snake.unshift(head);
+
+        // Food acquisition check
+        if (head.x === food.x && head.y === food.y) {
+            score += 1;
+            scoreEl.innerText = score;
+            if (score > highScore) {
+                highScore = score;
+                highScoreEl.innerText = highScore;
+            }
+            spawnFood();
+        } else if (config.mode === 'portal' && portalExit && head.x === portalExit.x && head.y === portalExit.y) {
+            // Portal jumps to food layout node positions smoothly
+            head.x = food.x;
+            head.y = food.y;
+            spawnFood();
+        } else {
+            snake.pop();
+        }
+
+        render();
+    }
+
+    function render() {
+        // Draw alternate green ground tile pattern
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                ctx.fillStyle = (r + c) % 2 === 0 ? '#aad751' : '#a2d149';
+                ctx.fillRect(c * tileSize, r * tileSize, tileSize, tileSize);
+            }
+        }
+
+        // Draw Walls mode blocks
+        if (config.mode === 'walls') {
+            ctx.fillStyle = '#bc8f8f';
+            obstacles.forEach(obs => {
+                ctx.fillRect(obs.x * tileSize + 2, obs.y * tileSize + 2, tileSize - 4, tileSize - 4);
+            });
+        }
+
+        // Draw Portal node indicators
+        if (config.mode === 'portal' && portalExit) {
+            ctx.fillStyle = '#9b5de5';
+            ctx.beginPath();
+            ctx.arc(portalExit.x * tileSize + tileSize/2, portalExit.y * tileSize + tileSize/2, tileSize/3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Draw targets/fruits
+        ctx.font = `${tileSize * 0.75}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(config.fruitEmoji, food.x * tileSize + tileSize / 2, food.y * tileSize + tileSize / 2);
+
+        // Draw interactive customizable Snake 
+        snake.forEach((segment, index) => {
+            ctx.fillStyle = config.snakeColor;
+            if (index === 0) {
+                // Style head unit
+                ctx.beginPath();
+                ctx.arc(segment.x * tileSize + tileSize/2, segment.y * tileSize + tileSize/2, tileSize/2 - 2, 0, Math.PI*2);
+                ctx.fill();
+
+                // Small googly eyes matching original Google aesthetic 
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(segment.x * tileSize + tileSize/2 - 4, segment.y * tileSize + tileSize/2 - 4, 4, 0, Math.PI*2);
+                ctx.arc(segment.x * tileSize + tileSize/2 + 4, segment.y * tileSize + tileSize/2 - 4, 4, 0, Math.PI*2);
+                ctx.fill();
+            } else {
+                // Style linear trailing elements
+                ctx.fillRect(segment.x * tileSize + 3, segment.y * tileSize + 3, tileSize - 6, tileSize - 6);
+            }
+        });
+    }
+
+    function endGame() {
+        isGameOver = true;
+        clearInterval(gameInterval);
+        menuOverlay.classList.remove('hidden');
+        alert(`Game Over! Final Score: ${score}`);
+    }
+
+    // Initialize board graphics
+    render();
+</script>
+</body>
+</html>

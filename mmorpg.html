@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weaver's Wake: Chronicles</title>
+    <style>
+        body { margin: 0; background-color: #0b0b0d; color: #f5f5f7; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+        #canvas-container { position: relative; border: 4px solid #3a3a42; border-radius: 8px; }
+        canvas { background-color: #eae6df; display: block; }
+        #hud { width: 800px; margin-bottom: 10px; font-size: 14px; background: #1a1a24; padding: 10px; border-radius: 5px; border: 1px solid #333; }
+        #error-log { color: #ff5555; background: #2a1111; padding: 10px; border-radius: 5px; margin-bottom: 10px; display: none; width: 780px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="error-log"></div>
+    <div id="hud">ACTIVE TASK: Speak to the Elder Scroll (Yellow square) in the center.</div>
+    <div id="canvas-container">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+    </div>
+
+<script>
+// --- ON-SCREEN ERROR CATCHER ---
+window.onerror = function(msg, url, line) {
+    const log = document.getElementById('error-log');
+    log.style.display = 'block';
+    log.innerHTML = `ERROR: ${msg} <br> Line: ${line}`;
+    return false;
+};
+
+// --- GAME SYSTEM CONFIGS ---
+const TILE_SIZE = 48;
+const VIEW_WIDTH = 800;
+const VIEW_HEIGHT = 600;
+
+const GameState = { OVERWORLD: 'OVERWORLD', BATTLE: 'BATTLE', DIALOGUE: 'DIALOGUE' };
+let globalState = GameState.OVERWORLD;
+
+// --- INPUT SYSTEM ---
+class InputHandler {
+    constructor() {
+        this.keys = {};
+        this.prevKeys = {};
+        window.addEventListener('keydown', e => this.keys[e.key] = true);
+        window.addEventListener('keyup', e => this.keys[e.key] = false);
+    }
+    update() { this.prevKeys = { ...this.keys }; }
+    isPressed(key) { return this.keys[key] === true; }
+    isTriggered(key) { return this.keys[key] === true && !this.prevKeys[key]; }
+}
+const input = new InputHandler();
+
+// --- DATA LAYER ---
+const MoveDB = {
+    TACKLE: { name: 'Tackle', damage: 15 },
+    INK_BLOT: { name: 'Ink Blot', damage: 25 },
+    VOID_BURN: { name: 'Void Burn', damage: 35 }
+};
+
+const MonsterDB = {
+    CHROMA_PUP: { name: 'Chromapup', maxHp: 80, moves: ['TACKLE'] },
+    VOID_DRAKE: { name: 'Void Drake', maxHp: 140, moves: ['VOID_BURN', 'TACKLE'] },
+    WILD_BLOT: { name: 'Wild Blot', maxHp: 50, moves: ['TACKLE'] }
+};
+
+class RuntimeMonster {
+    constructor(key) {
+        const proto = MonsterDB[key];
+        this.name = proto.name;
+        this.maxHp = proto.maxHp;
+        this.hp = this.maxHp;
+        this.moves = proto.moves.map(m => MoveDB[m]);
+    }
+}
+
+// --- PLAYER ---
+const player = {
+    gx: 5, gy: 5,
+    px: 5 * TILE_SIZE, py: 5 * TILE_SIZE,
+    tx: 5 * TILE_SIZE, ty: 5 * TILE_SIZE,
+    isMoving: false, speed: 4, direction: 'down',
+    monsters: [new RuntimeMonster('CHROMA_PUP')],
+    hasShard: false
+};
+
+// --- WORLD PROPERTIES ---
+const world = { width: 30, height: 30 };
+const camera = { x: 0, y: 0 };
+const collisions = Array(world.height).fill(null).map(() => Array(world.width).fill(0));
+
+// Build map barriers
+for(let y=0; y<world.height; y++) {
+    for(let x=0; x<world.width; x++) {
+        if(x === 0 || x === world.width-1 || y === 0 || y === world.height-1) collisions[y][x] = 1;
+        if(x === 10 && y > 2 && y < 12) collisions[y][x] = 1; // Wall obstacle
+    }
+}
+
+// NPCs
+const npcs = [
+    { id: 'SCROLL', gx: 6, gy: 4, name: 'Elder Scroll', color: '#b58900', dialogue: ["Greetings, Last Drop.", "The layout architecture is breaking down.", "Go East past the wall barrier and defeat the Red Guardian!"] },
+    { id: 'GUARDIAN', gx: 18, gy: 8, name: 'Red Guardian', color: '#dc322f', dialogue: ["You want to fix the canvas?", "Let's see if your code parameters hold up in battle!"] }
+];
+
+// --- BATTLE SYSTEM ---
+const battle = {
+    active: false, playerMon: null, enemyMon: null, cursor: 0, log: "", phase: 'SELECT'
+};
+
+function startBattle(enemyKey) {
+    globalState = GameState.BATTLE;
+    battle.playerMon = player.monsters[0];
+    battle.enemyMon = new RuntimeMonster(enemyKey);
+    battle.cursor = 0;
+    battle.phase = 'SELECT';
+    battle.log = `A wild ${battle.enemyMon.name} blocked your path!`;
+}
+
+// --- DIALOGUE SYSTEM ---
+const dialogue = { speaker: "", lines: [], index: 0, visible: "" };
+function startDialogue(npcObj) {
+    globalState = GameState.DIALOGUE;
+    dialogue.speaker = npcObj.name;
+    dialogue.lines = npcObj.dialogue;
+    dialogue.index = 0;
+    dialogue.visible = npcObj.dialogue[0];
+}
+
+// --- ENGINE REVOLUTIONS ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const hud = document.getElementById('hud');
+
+let questStep = 0;
+
+function update() {
+    if (globalState === GameState.OVERWORLD) {
+        if (!player.isMoving) {
+            let dx = 0, dy = 0;
+            if (input.isPressed('ArrowUp') || input.isPressed('w')) { dy = -1; player.direction = 'up'; }
+            else if (input.isPressed('ArrowDown') || input.isPressed('s')) { dy = 1; player.direction = 'down'; }
+            else if (input.isPressed('ArrowLeft') || input.isPressed('a')) { dx = -1; player.direction = 'left'; }
+            else if (input.isPressed('ArrowRight') || input.isPressed('d')) { dx = 1; player.direction = 'right'; }
+
+            if (dx !== 0 || dy !== 0) {
+                let targetX = player.gx + dx;
+                let targetY = player.gy + dy;
+                if (targetX >= 0 && targetX < world.width && targetY >= 0 && targetY < world.height) {
+                    if (collisions[targetY][targetX] === 0) {
+                        player.gx = targetX;
+                        player.gy = targetY;
+                        player.tx = targetX * TILE_SIZE;
+                        player.ty = targetY * TILE_SIZE;
+                        player.isMoving = true;
+                    }
+                }
+            }
+
+            // Talk Action trigger
+            if (input.isTriggered('Enter') || input.isTriggered(' ')) {
+                let fx = player.gx, fy = player.gy;
+                if (player.direction === 'up') fy--;
+                if (player.direction === 'down') fy++;
+                if (player.direction === 'left') fx--;
+                if (player.direction === 'right') fx++;
+
+                const target = npcs.find(n => n.gx === fx && n.gy === fy);
+                if (target) startDialogue(target);
+            }
+        } else {
+            if (player.px < player.tx) player.px += player.speed;
+            if (player.px > player.tx) player.px -= player.speed;
+            if (player.py < player.ty) player.py += player.speed;
+            if (player.py > player.ty) player.py -= player.speed;
+
+            if (player.px === player.tx && player.py === player.ty) {
+                player.isMoving = false;
+                // Wild step encounter rate
+                if (Math.random() < 0.05) startBattle('WILD_BLOT');
+            }
+        }
+
+        // Camera calculations
+        camera.x = player.px - VIEW_WIDTH / 2;
+        camera.y = player.py - VIEW_HEIGHT / 2;
+        camera.x = Math.max(0, Math.min(world.width * TILE_SIZE - VIEW_WIDTH, camera.x));
+        camera.y = Math.max(0, Math.min(world.height * TILE_SIZE - VIEW_HEIGHT, camera.y));
+
+    } else if (globalState === GameState.DIALOGUE) {
+        if (input.isTriggered('Enter') || input.isTriggered(' ')) {
+            dialogue.index++;
+            if (dialogue.index >= dialogue.lines.length) {
+                globalState = GameState.OVERWORLD;
+                // Story Progression hooks
+                if (dialogue.speaker === "Elder Scroll" && questStep === 0) {
+                    questStep = 1;
+                    hud.innerText = "ACTIVE TASK: Go East, challenge the Red Guardian.";
+                } else if (dialogue.speaker === "Red Guardian" && questStep === 1) {
+                    startBattle('VOID_DRAKE');
+                }
+            } else {
+                dialogue.visible = dialogue.lines[dialogue.index];
+            }
+        }
+    } else if (globalState === GameState.BATTLE) {
+        if (battle.phase === 'SELECT') {
+            if (input.isTriggered('ArrowDown') || input.isTriggered('s') || input.isTriggered('ArrowUp') || input.isTriggered('w')) {
+                battle.cursor = (battle.cursor + 1) % battle.playerMon.moves.length;
+            }
+            if (input.isTriggered('Enter') || input.isTriggered(' ')) {
+                let move = battle.playerMon.moves[battle.cursor];
+                battle.enemyMon.hp = Math.max(0, battle.enemyMon.hp - move.damage);
+                battle.log = `${battle.playerMon.name} used ${move.name}! Hit for ${move.damage}.`;
+                battle.phase = 'MESSAGE';
+            }
+        } else if (battle.phase === 'MESSAGE') {
+            if (input.isTriggered('Enter') || input.isTriggered(' ')) {
+                if (battle.enemyMon.hp <= 0) {
+                    globalState = GameState.OVERWORLD;
+                    if (battle.enemyMon.name === "Void Drake") {
+                        player.hasShard = true;
+                        hud.innerText = "ACTIVE TASK: Shard recovered! Speak to the Elder Scroll!";
+                        const scroll = npcs.find(n => n.id === 'SCROLL');
+                        scroll.dialogue = ["Unbelievable calculations!", "The framework layout is fully restored. You have beaten the glitch!"];
+                    }
+                } else {
+                    // Enemy retaliation turn
+                    let emove = battle.enemyMon.moves[0];
+                    player.monsters[0].hp = Math.max(0, player.monsters[0].hp - emove.damage);
+                    battle.log = `Enemy ${battle.enemyMon.name} used ${emove.name}! Took ${emove.damage} damage.`;
+                    battle.phase = 'ENEMY_MESSAGE';
+                }
+            }
+        } else if (battle.phase === 'ENEMY_MESSAGE') {
+            if (input.isTriggered('Enter') || input.isTriggered(' ')) {
+                if (player.monsters[0].hp <= 0) {
+                    alert("Your monster fainted! Refresh to compile again.");
+                    window.location.reload();
+                } else {
+                    battle.phase = 'SELECT';
+                    battle.log = "What will you do?";
+                }
+            }
+        }
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+
+    if (globalState === GameState.OVERWORLD || globalState === GameState.DIALOGUE) {
+        ctx.save();
+        ctx.translate(-camera.x, -camera.y);
+
+        // Draw structural Grid
+        for(let y=0; y<world.height; y++) {
+            for(let x=0; x<world.width; x++) {
+                if (collisions[y][x] === 1) {
+                    ctx.fillStyle = '#2c2c35';
+                    ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE-1, TILE_SIZE-1);
+                } else {
+                    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+                    ctx.strokeRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                }
+            }
+        }
+
+        // Draw NPCs
+        npcs.forEach(n => {
+            ctx.fillStyle = n.color;
+            ctx.fillRect(n.gx*TILE_SIZE + 4, n.gy*TILE_SIZE + 4, TILE_SIZE-8, TILE_SIZE-8);
+        });
+
+        // Draw Player
+        ctx.fillStyle = '#268bd2';
+        ctx.fillRect(player.px + 6, player.py + 6, TILE_SIZE-12, TILE_SIZE-12);
+
+        ctx.restore();
+
+        if (globalState === GameState.DIALOGUE) {
+            ctx.fillStyle = "rgba(10, 10, 15, 0.95)";
+            ctx.fillRect(40, 440, 720, 120);
+            ctx.strokeStyle = "#268bd2";
+            ctx.strokeRect(40, 440, 720, 120);
+            
+            ctx.fillStyle = "#268bd2"; ctx.font = "bold 14px monospace";
+            ctx.fillText(dialogue.speaker.toUpperCase(), 60, 470);
+            ctx.fillStyle = "#fff"; ctx.font = "16px monospace";
+            ctx.fillText(dialogue.visible, 60, 510);
+        }
+    } else if (globalState === GameState.BATTLE) {
+        ctx.fillStyle = '#15151c';
+        ctx.fillRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+
+        // Status bars
+        ctx.fillStyle = '#22222b';
+        ctx.fillRect(60, 60, 260, 80);
+        ctx.fillRect(480, 260, 260, 80);
+
+        ctx.fillStyle = '#fff'; ctx.font = "14px monospace";
+        ctx.fillText(battle.enemyMon.name, 80, 90);
+        ctx.fillText(`HP: ${battle.enemyMon.hp}/${battle.enemyMon.maxHp}`, 80, 115);
+
+        ctx.fillText(battle.playerMon.name, 500, 290);
+        ctx.fillText(`HP: ${battle.playerMon.hp}/${battle.playerMon.maxHp}`, 500, 315);
+
+        // Action Menu Box
+        ctx.fillStyle = '#050508'; ctx.fillRect(0, 420, 800, 180);
+        ctx.fillStyle = '#fff'; ctx.font = '16px monospace';
+
+        if (battle.phase === 'SELECT') {
+            battle.playerMon.moves.forEach((m, idx) => {
+                ctx.fillStyle = (battle.cursor === idx) ? '#859900' : '#8a8a93';
+                ctx.fillText(`> ${m.name}`, 100, 480 + (idx * 30));
+            });
+        } else {
+            ctx.fillText(battle.log, 80, 490);
+        }
+    }
+}
+
+function loop() {
+    update();
+    draw();
+    input.update();
+    requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

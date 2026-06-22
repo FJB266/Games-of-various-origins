@@ -1,0 +1,2066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokémon Ignition & Overdrive - Auraus Region</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #0b0f19;
+            color: #f3f4f6;
+        }
+        .header-font {
+            font-family: 'Orbitron', sans-serif;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #f59e0b;
+            border-radius: 3px;
+        }
+        .glow-orange:hover {
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+        }
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+        }
+        .battle-bg {
+            background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px) rotate(-1deg); }
+            75% { transform: translateX(5px) rotate(1deg); }
+        }
+        .shake-animation {
+            animation: shake 0.2s ease-in-out;
+        }
+        @keyframes float-up {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-40px); opacity: 0; }
+        }
+        .damage-number {
+            animation: float-up 0.8s ease-out forwards;
+        }
+        @keyframes pulse-gold {
+            0%, 100% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.03); filter: brightness(1.2) drop-shadow(0 0 12px #f59e0b); }
+        }
+        .apex-active {
+            animation: pulse-gold 1.5s infinite;
+            border-color: #f59e0b !important;
+        }
+        @keyframes breathe {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(0.95) translateY(2px); }
+        }
+        .sprite-breathe {
+            animation: breathe 2s ease-in-out infinite;
+            transform-origin: bottom center;
+        }
+
+        /* Light Mode Theme Variables */
+        :root {
+            --color-bg-body: #0b0f19;
+            --color-bg-900: #111827;
+            --color-bg-950: #030712;
+            --color-bg-800: #1f2937;
+            --color-text-100: #f3f4f6;
+            --color-text-300: #d1d5db;
+            --color-text-400: #9ca3af;
+        }
+
+        .light-mode {
+            --color-bg-body: #f8fafc;
+            --color-bg-900: #ffffff;
+            --color-bg-950: #f1f5f9;
+            --color-bg-800: #e2e8f0;
+            --color-text-100: #0f172a;
+            --color-text-300: #334155;
+            --color-text-400: #475569;
+        }
+
+        /* Force variables onto UI elements */
+        body { background-color: var(--color-bg-body); color: var(--color-text-100); transition: all 0.3s ease; }
+        .bg-gray-900 { background-color: var(--color-bg-900) !important; transition: background-color 0.3s ease; }
+        .bg-gray-950 { background-color: var(--color-bg-950) !important; transition: background-color 0.3s ease; }
+        .bg-gray-800 { background-color: var(--color-bg-800) !important; transition: background-color 0.3s ease; }
+        .border-gray-800 { border-color: var(--color-bg-800) !important; transition: border-color 0.3s ease; }
+        .text-gray-100 { color: var(--color-text-100) !important; transition: color 0.3s ease; }
+        .text-gray-300 { color: var(--color-text-300) !important; transition: color 0.3s ease; }
+        .text-gray-400 { color: var(--color-text-400) !important; transition: color 0.3s ease; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col overflow-x-hidden">
+
+    <!-- Top Navigation HUD -->
+    <header class="bg-gray-900 border-b-2 border-amber-500 p-4 sticky top-0 z-50 shadow-lg">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-amber-500 text-gray-900 p-2 rounded header-font font-black text-xl tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-motorcycle animate-bounce"></i> AURAUS
+                </div>
+                <h1 class="header-font text-lg font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-cyan-400" id="game-title">
+                    IGNITION & OVERDRIVE
+                </h1>
+                <!-- Theme Toggle & Save/Load -->
+                <div class="flex gap-2 ml-2 md:ml-6">
+                    <button onclick="toggleTheme()" class="bg-gray-800 hover:bg-gray-700 text-amber-400 p-2.5 rounded-full transition-all shadow border border-gray-700" id="theme-toggle-btn" title="Toggle Light/Dark Mode">
+                        <i class="fa-solid fa-sun"></i>
+                    </button>
+                    <button onclick="saveGame()" class="bg-emerald-700 hover:bg-emerald-600 text-white p-2.5 rounded-full transition-all shadow border border-emerald-500" title="Save Game">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                    </button>
+                    <button onclick="loadGame()" class="bg-blue-700 hover:bg-blue-600 text-white p-2.5 rounded-full transition-all shadow border border-blue-500" title="Load Game">
+                        <i class="fa-solid fa-folder-open"></i>
+                    </button>
+                    <a href="index.html">BACK TO HOMEPAGE</a>
+                </div>
+            </div>
+            
+            <!-- Global Stats Bar -->
+            <div id="hud-stats" class="hidden flex flex-wrap items-center gap-4 text-sm md:text-base">
+                <span class="flex items-center gap-1 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
+                    <i class="fa-solid fa-gamepad text-cyan-400"></i>
+                    <span id="hud-version" class="font-bold text-cyan-400">Ignition</span>
+                </span>
+                <span class="flex items-center gap-1 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
+                    <i class="fa-solid fa-wrench text-amber-400"></i>
+                    <span>Scrap:</span> <strong id="hud-scrap" class="text-amber-400">30</strong>
+                </span>
+                <span class="flex items-center gap-1 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
+                    <i class="fa-solid fa-circle-dot text-emerald-400"></i>
+                    <span>Balls:</span> <strong id="hud-balls" class="text-emerald-400">5</strong>
+                </span>
+                <span class="flex items-center gap-1 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
+                    <i class="fa-solid fa-flask text-pink-400"></i>
+                    <span>Potions:</span> <strong id="hud-potions" class="text-pink-400">5</strong>
+                </span>
+                <span class="flex items-center gap-1 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
+                    <i class="fa-solid fa-trophy text-yellow-400"></i>
+                    <span>Badges:</span> <strong id="hud-badges" class="text-yellow-400">0/8</strong>
+                </span>
+                <span class="flex items-center gap-1 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
+                    <i class="fa-solid fa-compass text-green-400"></i>
+                    <span>Zone:</span> <strong id="hud-location" class="text-green-400 font-bold">Frond Village</strong>
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dynamic Content Frame -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 flex flex-col justify-center">
+        
+        <!-- 1. INTRO / VERSION SELECT -->
+        <section id="screen-intro" class="grid grid-cols-1 md:grid-cols-2 gap-8 py-8">
+            <div class="flex flex-col justify-center space-y-6">
+                <div class="inline-block bg-amber-500/10 border border-amber-500 text-amber-400 px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase self-start">
+                    The Outback Awaits
+                </div>
+                <h2 class="header-font text-5xl font-black leading-tight tracking-wider">
+                    SURVIVE THE <span class="text-amber-500">HIGHWAYS</span> OF AURAUS
+                </h2>
+                <p class="text-gray-400 text-lg leading-relaxed">
+                    Build your team, upgrade your Scrap-Bike, and conquer the grueling 8-Gym circuit. Outrun the rogue biker syndicate, <strong class="text-red-500">Team Redline</strong>, and unlock the world-shaking power of the <strong class="text-amber-400">Apex Surge</strong>.
+                </p>
+                <div class="bg-gray-900 border-l-4 border-cyan-500 p-4 rounded">
+                    <p class="text-sm italic text-gray-300">
+                        "In Auraus, we don't just train. We survive. Fasten your helmet, rookie."
+                    </p>
+                    <p class="text-xs text-cyan-400 font-bold mt-1">— Professor Banksia</p>
+                </div>
+            </div>
+
+            <!-- Version Choices -->
+            <div class="bg-gray-900/50 border-2 border-gray-800 rounded-xl p-8 flex flex-col justify-between space-y-6">
+                <div>
+                    <h3 class="header-font text-2xl font-bold text-center mb-6">CHOOSE YOUR VERSION</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Ignition Version Card -->
+                        <button onclick="selectVersion('Ignition')" class="group relative overflow-hidden bg-gradient-to-b from-orange-950 to-gray-900 border-2 border-orange-600 hover:border-orange-400 p-6 rounded-lg text-left transition-all duration-300 transform hover:-translate-y-1">
+                            <div class="absolute -right-8 -bottom-8 opacity-10 text-9xl text-orange-500 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-fire"></i>
+                            </div>
+                            <h4 class="header-font text-xl font-black text-orange-500 tracking-wider">POKÉMON IGNITION</h4>
+                            <p class="text-xs text-gray-400 mt-2">Mascot: <strong class="text-orange-400">Tectoneth</strong> (Dragon/Rock). Focuses on raw earth strength and ancient tectonic fury.</p>
+                            <span class="inline-block mt-4 text-xs font-bold bg-orange-600 text-white px-2 py-1 rounded">Ancient Spark</span>
+                        </button>
+                        
+                        <!-- Overdrive Version Card -->
+                        <button onclick="selectVersion('Overdrive')" class="group relative overflow-hidden bg-gradient-to-b from-cyan-950 to-gray-900 border-2 border-cyan-600 hover:border-cyan-400 p-6 rounded-lg text-left transition-all duration-300 transform hover:-translate-y-1">
+                            <div class="absolute -right-8 -bottom-8 opacity-10 text-9xl text-cyan-500 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-bolt"></i>
+                            </div>
+                            <h4 class="header-font text-xl font-black text-cyan-400 tracking-wider">POKÉMON OVERDRIVE</h4>
+                            <p class="text-xs text-gray-400 mt-2">Mascot: <strong class="text-cyan-400">Turborix</strong> (Dragon/Steel). Focuses on engineering limits and high-speed mechanical power.</p>
+                            <span class="inline-block mt-4 text-xs font-bold bg-cyan-600 text-white px-2 py-1 rounded">Overclocked Force</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="text-center text-xs text-gray-500">
+                    Version selection dictates your mascot, exclusive fossils, and starter battle variations.
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. STARTER SELECTION -->
+        <section id="screen-starter" class="hidden py-8 max-w-4xl mx-auto">
+            <div class="text-center mb-8">
+                <span class="bg-amber-500/10 border border-amber-500 text-amber-400 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">
+                    Research RV Station
+                </span>
+                <h2 class="header-font text-3xl font-black mt-2">CHOOSE YOUR FIRST PARTNER</h2>
+                <p class="text-gray-400 mt-1">Professor Banksia has opened her mobile lab. Pick the partner that fits your survival style.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Snivy Card -->
+                <div class="bg-gray-900 border-2 border-emerald-500/30 hover:border-emerald-500 p-6 rounded-xl text-center flex flex-col justify-between transition-all">
+                    <div>
+                        <div class="w-24 h-24 mx-auto mb-4 bg-emerald-950/50 rounded-full flex items-center justify-center border-2 border-emerald-500/50">
+                            <span class="text-5xl">🦎</span>
+                        </div>
+                        <h3 class="header-font text-2xl font-bold text-emerald-400">Snivy</h3>
+                        <p class="text-xs text-gray-400 mt-1 uppercase font-bold tracking-widest">Grass Type</p>
+                        <p class="text-sm text-gray-300 mt-4 leading-relaxed">
+                            A proud, sleek serpent adapted to sandy winds. Evolves eventually into <strong>Servine</strong> (Lv. 16), then <strong>Aurauan Serperior</strong> (Grass/Poison), gaining a massive <strong>Speed Surge</strong>.
+                        </p>
+                    </div>
+                    <button onclick="pickStarter('Snivy')" class="mt-6 w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-lg font-bold transition-all shadow-md">
+                        Choose Snivy
+                    </button>
+                </div>
+
+                <!-- Torchic Card -->
+                <div class="bg-gray-900 border-2 border-orange-500/30 hover:border-orange-500 p-6 rounded-xl text-center flex flex-col justify-between transition-all">
+                    <div>
+                        <div class="w-24 h-24 mx-auto mb-4 bg-orange-950/50 rounded-full flex items-center justify-center border-2 border-orange-500/50">
+                            <span class="text-5xl">🐤</span>
+                        </div>
+                        <h3 class="header-font text-2xl font-bold text-orange-400">Torchic</h3>
+                        <p class="text-xs text-gray-400 mt-1 uppercase font-bold tracking-widest">Fire Type</p>
+                        <p class="text-sm text-gray-300 mt-4 leading-relaxed">
+                            A high-heat chick packed with kinetic power. Evolves eventually into <strong>Combusken</strong> (Lv. 16), then <strong>Aurauan Blaziken</strong> (Fire/Ground), unleashing a crushing <strong>Attack Surge</strong>.
+                        </p>
+                    </div>
+                    <button onclick="pickStarter('Torchic')" class="mt-6 w-full bg-orange-600 hover:bg-orange-500 text-white py-2 rounded-lg font-bold transition-all shadow-md">
+                        Choose Torchic
+                    </button>
+                </div>
+
+                <!-- Froakie Card -->
+                <div class="bg-gray-900 border-2 border-cyan-500/30 hover:border-cyan-500 p-6 rounded-xl text-center flex flex-col justify-between transition-all">
+                    <div>
+                        <div class="w-24 h-24 mx-auto mb-4 bg-cyan-950/50 rounded-full flex items-center justify-center border-2 border-cyan-500/50">
+                            <span class="text-5xl">🐸</span>
+                        </div>
+                        <h3 class="header-font text-2xl font-bold text-cyan-400">Froakie</h3>
+                        <p class="text-xs text-gray-400 mt-1 uppercase font-bold tracking-widest">Water Type</p>
+                        <p class="text-sm text-gray-300 mt-4 leading-relaxed">
+                            A mysterious, starry frog that reflects cosmic light. Evolves eventually into <strong>Frogadier</strong> (Lv. 16), then <strong>Aurauan Greninja</strong> (Water/Psychic), boosting its <strong>Special Attack Surge</strong>.
+                        </p>
+                    </div>
+                    <button onclick="pickStarter('Froakie')" class="mt-6 w-full bg-cyan-600 hover:bg-cyan-500 text-white py-2 rounded-lg font-bold transition-all shadow-md">
+                        Choose Froakie
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. GAMEPLAY dashboard (MAP, BATTLE, DEX, UPGRADES) -->
+        <section id="screen-dashboard" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 py-6">
+            
+            <!-- LEFT PANEL: Navigation tabs & Map -->
+            <div class="lg:col-span-8 flex flex-col gap-6">
+                <!-- Navigation Tabs -->
+                <div class="bg-gray-900 p-2 rounded-lg flex flex-wrap gap-2 border border-gray-800">
+                    <button onclick="switchTab('map')" id="tab-map" class="tab-btn px-4 py-2 rounded font-bold transition-all bg-amber-500 text-gray-900">
+                        <i class="fa-solid fa-map-location-dot mr-1"></i> Road Map
+                    </button>
+                    <button onclick="switchTab('dex')" id="tab-dex" class="tab-btn px-4 py-2 rounded font-bold transition-all text-gray-400 hover:text-white">
+                        <i class="fa-solid fa-address-book mr-1"></i> Pokédex
+                    </button>
+                    <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn px-4 py-2 rounded font-bold transition-all text-gray-400 hover:text-white">
+                        <i class="fa-solid fa-screwdriver-wrench mr-1"></i> Scrap Garage
+                    </button>
+                </div>
+
+                <!-- TAB CONTENT: MAP -->
+                <div id="tab-content-map" class="bg-gray-900 border border-gray-800 rounded-xl p-6 flex-grow flex flex-col justify-between">
+                    <div>
+                        <h3 class="header-font text-2xl font-bold border-b border-gray-800 pb-3 mb-4 flex justify-between items-center">
+                            <span>AURAUS HIGHWAY ROUTE PATH</span>
+                            <span class="text-xs bg-gray-800 text-amber-500 px-2 py-1 rounded">Explore Route Pins</span>
+                        </h3>
+                        
+                        <!-- Visual Highway Road Map Linkage -->
+                        <div class="relative bg-gray-950 rounded-xl p-4 md:p-8 mb-6 border border-gray-800 flex flex-col justify-center">
+                            <!-- Background Highway line -->
+                            <div class="absolute h-1.5 bg-gradient-to-r from-emerald-500 via-amber-500 to-red-600 left-4 right-4 top-1/2 -translate-y-1/2 z-0 opacity-50 rounded"></div>
+                            
+                            <!-- Connected Pins -->
+                            <div class="relative z-10 flex items-start gap-6 md:gap-8 w-full overflow-x-auto pb-4 pt-2 custom-scrollbar" id="map-visual-nodes">
+                                <!-- Generated Dynamically -->
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-h-[300px] overflow-y-auto pr-2" id="map-locations-grid">
+                            <!-- Grid representation -->
+                        </div>
+                    </div>
+
+                    <!-- Selected Location Preview & Action Panel -->
+                    <div class="bg-gray-950 border border-gray-800 rounded-lg p-4 mt-6">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div class="flex items-center gap-3">
+                                <div class="text-4xl text-amber-500 bg-gray-900 p-2.5 rounded-lg border border-gray-800" id="selected-loc-icon">
+                                    <i class="fa-solid fa-road"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-lg font-bold text-amber-500 flex items-center gap-2">
+                                        <span id="selected-loc-name">Route 1: Sun-Baked Scrublands</span>
+                                        <span class="text-xs font-mono bg-gray-800 text-gray-400 px-2 py-0.5 rounded" id="selected-loc-level">Lv. 5</span>
+                                    </h4>
+                                    <p class="text-sm text-gray-400 mt-0.5" id="selected-loc-desc">A dusty road cutting through red clay and sharp spinifex grass.</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 w-full md:w-auto">
+                                <button id="heal-btn" onclick="healParty()" class="hidden flex-1 md:flex-initial bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-3 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-blue-900/30">
+                                    <i class="fa-solid fa-heart-pulse"></i> Rest & Heal
+                                </button>
+                                <button onclick="triggerWildEncounter()" class="flex-1 md:flex-initial bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-3 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-900/30">
+                                    <i class="fa-solid fa-binoculars"></i> Search Path
+                                </button>
+                                <button id="gym-challenge-btn" onclick="triggerGymBattle()" class="flex-1 md:flex-initial bg-amber-600 hover:bg-amber-500 text-white font-bold px-5 py-3 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-amber-900/30">
+                                    <i class="fa-solid fa-circle-nodes"></i> Challenge Gym
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB CONTENT: POKEDEX -->
+                <div id="tab-content-dex" class="hidden bg-gray-900 border border-gray-800 rounded-xl p-6 flex flex-col">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-800 pb-4 mb-4">
+                        <div>
+                            <h3 class="header-font text-2xl font-bold">AURAUS REGIONAL POKÉDEX</h3>
+                            <p class="text-xs text-gray-400">Total: 232 Species cataloged by Professor Banksia</p>
+                        </div>
+                        <input type="text" id="dex-search" oninput="filterPokedex()" placeholder="Search Name or Element..." class="bg-gray-950 border border-gray-800 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-amber-500 w-full sm:w-64" />
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[480px] overflow-y-auto pr-2" id="pokedex-list">
+                        <!-- Pokedex cards generated dynamically -->
+                    </div>
+                </div>
+
+                <!-- TAB CONTENT: SCRAP GARAGE -->
+                <div id="tab-content-shop" class="hidden bg-gray-900 border border-gray-800 rounded-xl p-6">
+                    <h3 class="header-font text-2xl font-bold border-b border-gray-800 pb-3 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-toolbox text-amber-500"></i> MESA'S SCRAPYARD GARAGE
+                    </h3>
+                    <p class="text-sm text-gray-400 mb-6 font-mono">Collect scrap parts from wild battles and outlaws to mount state-of-the-art parts on your Scrap-Bike!</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-gray-950 p-4 border border-gray-800 rounded-lg flex justify-between items-center">
+                            <div>
+                                <h4 class="font-bold text-pink-400">Super Potion (x3)</h4>
+                                <p class="text-xs text-gray-400">Restores 50 HP in the heat of battle.</p>
+                                <span class="text-xs text-cyan-400 font-bold mt-1 inline-block">Cost: 15 Scrap</span>
+                            </div>
+                            <button onclick="buyPotions(15)" class="bg-pink-700 hover:bg-pink-600 text-white text-xs px-3 py-1.5 rounded font-bold">
+                                Purchase
+                            </button>
+                        </div>
+
+                        <div class="bg-gray-950 p-4 border border-gray-800 rounded-lg flex justify-between items-center">
+                            <div>
+                                <h4 class="font-bold text-emerald-400">Capture Matrix (x3)</h4>
+                                <p class="text-xs text-gray-400">Specialized grid-traps for capturing wild Pokémon.</p>
+                                <span class="text-xs text-cyan-400 font-bold mt-1 inline-block">Cost: 10 Scrap</span>
+                            </div>
+                            <button onclick="buyBalls(10)" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded font-bold">
+                                Purchase
+                            </button>
+                        </div>
+
+                        <div class="bg-gray-950 p-4 border border-gray-800 rounded-lg flex justify-between items-center">
+                            <div>
+                                <h4 class="font-bold text-amber-400">Cracked Sparkplug</h4>
+                                <p class="text-xs text-gray-400">Plugs into lead slot to boost speed in battles by 20%.</p>
+                                <span class="text-xs text-cyan-400 font-bold mt-1 inline-block">Cost: 30 Scrap</span>
+                            </div>
+                            <button onclick="buyItem('Sparkplug', 30)" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded font-bold">
+                                Purchase
+                            </button>
+                        </div>
+
+                        <div class="bg-gray-950 p-4 border border-gray-800 rounded-lg flex justify-between items-center">
+                            <div>
+                                <h4 class="font-bold text-amber-400">Rusty Plating</h4>
+                                <p class="text-xs text-gray-400">Heavy iron scrap boosting battle defense stats by 30%.</p>
+                                <span class="text-xs text-cyan-400 font-bold mt-1 inline-block">Cost: 30 Scrap</span>
+                            </div>
+                            <button onclick="buyItem('Plating', 30)" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded font-bold">
+                                Purchase
+                            </button>
+                        </div>
+
+                        <div class="bg-gray-950 p-4 border border-gray-800 rounded-lg flex justify-between items-center">
+                            <div>
+                                <h4 class="font-bold text-cyan-400">All-Terrain Bike Treads</h4>
+                                <p class="text-xs text-gray-400">Treads required to scale high volcanic desert environments.</p>
+                                <span class="text-xs text-amber-400 font-bold mt-1 inline-block">Cost: 60 Scrap</span>
+                            </div>
+                            <button onclick="buyUpgrade('Treads', 60)" id="btn-upgrade-treads" class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs px-3 py-1.5 rounded font-bold">
+                                Upgrade
+                            </button>
+                        </div>
+
+                        <div class="bg-gray-950 p-4 border border-gray-800 rounded-lg flex justify-between items-center">
+                            <div>
+                                <h4 class="font-bold text-cyan-400">Nitrous Booster</h4>
+                                <p class="text-xs text-gray-400">Fires high-output bursts to jump massive highway gaps.</p>
+                                <span class="text-xs text-amber-400 font-bold mt-1 inline-block">Cost: 100 Scrap</span>
+                            </div>
+                            <button onclick="buyUpgrade('Booster', 100)" id="btn-upgrade-booster" class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs px-3 py-1.5 rounded font-bold">
+                                Upgrade
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT PANEL: Current Survival Team & Held Items -->
+            <div class="lg:col-span-4 flex flex-col gap-6">
+                <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 flex flex-col h-full">
+                    <div class="border-b border-gray-800 pb-3 mb-4">
+                        <h3 class="header-font text-xl font-bold flex justify-between items-center">
+                            <span>SURVIVAL PARTY</span>
+                            <span class="text-xs bg-gray-800 text-gray-400 px-2 py-1 rounded" id="party-count">1/6</span>
+                        </h3>
+                        <p class="text-xs text-gray-400 mt-1">💡 Click any teammate to make them your **Lead Battler**</p>
+                    </div>
+
+                    <div id="party-list" class="space-y-3 flex-grow overflow-y-auto max-h-[400px]">
+                        <!-- Party slots generated dynamically -->
+                    </div>
+
+                    <!-- Quick Gear Inventory -->
+                    <div class="bg-gray-950 border border-gray-800 rounded-lg p-4 mt-4">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-amber-500 mb-2">Active Battle Gear Plugins</h4>
+                        <div class="flex gap-2 flex-wrap" id="inventory-list">
+                            <span class="text-xs bg-gray-800 text-gray-400 px-2 py-1 rounded">Empty Engine Slots</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. TURN-BASED BATTLE ARENA -->
+        <section id="screen-battle" class="hidden max-w-5xl mx-auto py-6">
+            <div class="bg-gray-900 border-2 border-amber-500 rounded-xl overflow-hidden shadow-2xl">
+                <!-- Battle Stage Header -->
+                <div class="bg-gray-950 px-6 py-3 border-b border-gray-800 flex justify-between items-center">
+                    <span class="header-font font-bold text-sm tracking-widest text-amber-500" id="battle-mode-title">WILD ENCOUNTER</span>
+                    <span class="text-xs bg-red-600/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded font-bold">Auraus Apex Rules Apply</span>
+                </div>
+
+                <!-- Battle Field Visualizer -->
+                <div class="battle-bg p-8 grid grid-cols-1 md:grid-cols-2 gap-8 relative overflow-hidden min-h-[320px] flex items-center">
+                    
+                    <!-- Floating DMG Text Container -->
+                    <div id="battle-dmg-container" class="absolute inset-0 pointer-events-none z-30"></div>
+
+                    <!-- Enemy Spot (Top Right / Right Side) -->
+                    <div class="flex flex-col items-center md:items-end justify-center space-y-2 order-1 md:order-2">
+                        <div class="bg-gray-950/90 p-4 rounded-xl border border-gray-800 w-full max-w-xs shadow-lg transition-all" id="enemy-card">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="font-bold text-lg" id="enemy-name">Wild Jackaroo</span>
+                                <span class="text-xs text-gray-400 font-bold" id="enemy-level">Lv. 3</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mb-2" id="enemy-type">Normal / Ground</div>
+                            <div class="w-full bg-gray-800 h-3 rounded-full overflow-hidden">
+                                <div id="enemy-hp-bar" class="bg-gradient-to-r from-emerald-500 to-green-400 h-full transition-all duration-300 w-full"></div>
+                            </div>
+                            <div class="text-right text-xs mt-1 font-mono" id="enemy-hp-text">100 / 100 HP</div>
+                        </div>
+                        <div class="text-8xl mt-4 transform transition-all duration-300 sprite-breathe" id="enemy-sprite">🦘</div>
+                    </div>
+
+                    <!-- Player Spot (Bottom Left / Left Side) -->
+                    <div class="flex flex-col items-center md:items-start justify-center space-y-2 order-2 md:order-1">
+                        <div class="text-8xl mb-4 transform transition-all duration-300 sprite-breathe" id="player-sprite">🦎</div>
+                        <div class="bg-gray-950/90 p-4 rounded-xl border border-gray-800 w-full max-w-xs shadow-lg transition-all" id="player-card">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="font-bold text-lg" id="player-name">Aurauan Snivy</span>
+                                <span class="text-xs text-gray-400 font-bold" id="player-level">Lv. 5</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mb-2 flex justify-between items-center">
+                                <span id="player-type">Grass</span>
+                                <span class="text-amber-500 text-[10px] font-mono font-bold" id="player-xp-text">EXP: 0/100</span>
+                            </div>
+                            <div class="w-full bg-gray-800 h-3 rounded-full overflow-hidden mb-1">
+                                <div id="player-hp-bar" class="bg-gradient-to-r from-emerald-500 to-green-400 h-full transition-all duration-300 w-full"></div>
+                            </div>
+                            <!-- Player EXP bar -->
+                            <div class="w-full bg-gray-900 h-1 rounded-full overflow-hidden">
+                                <div id="player-xp-bar" class="bg-cyan-500 h-full transition-all duration-300 w-0"></div>
+                            </div>
+                            <div class="flex justify-between text-xs mt-1">
+                                <span id="player-gear-tag" class="text-cyan-400 font-bold"></span>
+                                <span id="player-hp-text" class="font-mono">100 / 100 HP</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Battle Controls / Action Menu -->
+                <div class="bg-gray-950 p-6 border-t border-gray-800 grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Action Log -->
+                    <div class="lg:col-span-5 bg-gray-900 border border-gray-800 rounded-lg p-4 h-40 overflow-y-auto text-sm space-y-1 font-mono" id="battle-log">
+                        <p class="text-gray-400">Wild combat sequence initialized!</p>
+                    </div>
+
+                    <!-- Moves Grid & Special Actions -->
+                    <div class="lg:col-span-7 flex flex-col justify-between gap-4">
+                        <div class="grid grid-cols-2 gap-3" id="moves-grid">
+                            <!-- Dynamically generated buttons -->
+                        </div>
+
+                        <!-- Special Toggles (Apex Surge, Catch) -->
+                        <div class="flex gap-3">
+                            <button id="btn-apex-surge" onclick="triggerApexSurge()" class="flex-1 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-black py-3 rounded-lg uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-crown text-yellow-300"></i> APEX SURGE (+100 Stats)
+                            </button>
+                            <button onclick="usePotion()" class="bg-pink-700 hover:bg-pink-600 text-white font-bold px-4 rounded-lg transition-all flex items-center justify-center gap-2 shadow-md">
+                                <i class="fa-solid fa-flask"></i> Heal (<span id="btn-potion-count">5</span>)
+                            </button>
+                            <button id="btn-catch" onclick="attemptCatch()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-4 rounded-lg transition-all flex items-center justify-center gap-2 shadow-md">
+                                <i class="fa-solid fa-circle-dot"></i> Catch (<span id="btn-catch-count">5</span>)
+                            </button>
+                            <button onclick="runFromBattle()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold px-4 rounded-lg transition-all">
+                                Escape
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Custom Modal Alerts -->
+    <div id="custom-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+        <div class="bg-gray-900 border-2 border-amber-500 rounded-xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl">
+            <div id="modal-icon" class="text-6xl text-amber-500">
+                <i class="fa-solid fa-circle-exclamation"></i>
+            </div>
+            <h3 id="modal-title" class="header-font text-2xl font-black tracking-wider text-amber-500">NOTIFICATION</h3>
+            <p id="modal-message" class="text-gray-300 text-base leading-relaxed">Alert details here.</p>
+            <button onclick="closeModal()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 px-8 rounded-lg transition-all uppercase tracking-wider">
+                Acknowledge
+            </button>
+        </div>
+    </div>
+
+    <!-- Footer System HUD -->
+    <footer class="bg-gray-950 border-t border-gray-900 p-4 text-center text-xs text-gray-600 mt-auto">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-2">
+            <span>Auraus Region: Pokémon Ignition & Overdrive Engine version 2.5-flash-preview.</span>
+            <span>Created for testing environments. Safe, clean, and interactive RPG experience.</span>
+        </div>
+    </footer>
+
+    <!-- Game Engine Logic & Web Audio synth engine -->
+    <script>
+        // Web Audio Synthesizer for Retro SFX
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'hit') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+                    gainNode.gain.setValueAtTime(0.3, now);
+                    gainNode.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'crit') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(100, now + 0.25);
+                    gainNode.gain.setValueAtTime(0.4, now);
+                    gainNode.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'heal') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.exponentialRampToValueAtTime(800, now + 0.4);
+                    gainNode.gain.setValueAtTime(0.2, now);
+                    gainNode.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'level_up') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.setValueAtTime(554, now + 0.1);
+                    osc.frequency.setValueAtTime(659, now + 0.2);
+                    osc.frequency.setValueAtTime(880, now + 0.3);
+                    gainNode.gain.setValueAtTime(0.25, now);
+                    gainNode.gain.linearRampToValueAtTime(0.01, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                } else if (type === 'apex') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(100, now);
+                    osc.frequency.linearRampToValueAtTime(1200, now + 0.6);
+                    gainNode.gain.setValueAtTime(0.35, now);
+                    gainNode.gain.linearRampToValueAtTime(0.01, now + 0.65);
+                    osc.start(now);
+                    osc.stop(now + 0.65);
+                } else if (type === 'click') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, now);
+                    gainNode.gain.setValueAtTime(0.1, now);
+                    gainNode.gain.linearRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                }
+            } catch (e) {
+                console.log("Audio contexts pending interaction: ", e);
+            }
+        }
+
+        // Complete 232 Slot Pokédex Database
+        const POKEDEX_DATABASE = [
+            { id: 1, name: "Snivy", type: "Grass", apex: false, evolution: "Servine at Lv.16" },
+            { id: 2, name: "Servine", type: "Grass", apex: false, evolution: "Aurauan Serperior at Lv.32" },
+            { id: 3, name: "Aurauan Serperior", type: "Grass/Poison", apex: "Speed (+100)", evolution: "Final Stage" },
+            { id: 4, name: "Torchic", type: "Fire", apex: false, evolution: "Combusken at Lv.16" },
+            { id: 5, name: "Combusken", type: "Fire", apex: false, evolution: "Aurauan Blaziken at Lv.32" },
+            { id: 6, name: "Aurauan Blaziken", type: "Fire/Ground", apex: "Attack (+100)", evolution: "Final Stage" },
+            { id: 7, name: "Froakie", type: "Water", apex: false, evolution: "Frogadier at Lv.16" },
+            { id: 8, name: "Frogadier", type: "Water", apex: false, evolution: "Aurauan Greninja at Lv.32" },
+            { id: 9, name: "Aurauan Greninja", type: "Water/Psychic", apex: "Special Attack (+100)", evolution: "Final Stage" },
+            { id: 10, name: "Jackaroo", type: "Normal/Ground", apex: false, evolution: "Jumpingoo at Lv.20" },
+            { id: 11, name: "Jumpingoo", type: "Normal/Ground", apex: false, evolution: "Final Stage" },
+            { id: 12, name: "Rookidee", type: "Flying", apex: false, evolution: "Corvisquire at Lv.18" },
+            { id: 13, name: "Corvisquire", type: "Flying", apex: false, evolution: "Corviknight at Lv.38" },
+            { id: 14, name: "Corviknight", type: "Steel/Flying", apex: false, evolution: "Final Stage" },
+            { id: 15, name: "Caterpie", type: "Bug", apex: false, evolution: "Metapod at Lv.7" },
+            { id: 16, name: "Metapod", type: "Bug", apex: false, evolution: "Butterfree at Lv.10" },
+            { id: 17, name: "Butterfree", type: "Bug/Flying", apex: false, evolution: "Final Stage" },
+            { id: 18, name: "Poochyena", type: "Dark", apex: false, evolution: "Mightyena at Lv.18" },
+            { id: 19, name: "Mightyena", type: "Dark", apex: false, evolution: "Final Stage" },
+            { id: 20, name: "Bunnelby", type: "Normal", apex: false, evolution: "Diggersby at Lv.20" },
+            { id: 21, name: "Diggersby", type: "Normal/Ground", apex: false, evolution: "Final Stage" },
+            { id: 22, name: "Koffing", type: "Poison", apex: false, evolution: "Weezing at Lv.35" },
+            { id: 23, name: "Weezing", type: "Poison", apex: false, evolution: "Final Stage" },
+            { id: 24, name: "Shinx", type: "Electric", apex: false, evolution: "Luxio at Lv.15" },
+            { id: 25, name: "Luxio", type: "Electric", apex: false, evolution: "Luxray at Lv.30" },
+            { id: 26, name: "Luxray", type: "Electric", apex: "Attack (+100)", evolution: "Final Stage" },
+            { id: 27, name: "Joltik", type: "Bug/Electric", apex: false, evolution: "Galvantula at Lv.36" },
+            { id: 28, name: "Galvantula", type: "Bug/Electric", apex: "Speed (+100)", evolution: "Arachneco via Electirizer" },
+            { id: 29, name: "Arachneco", type: "Bug/Electric", apex: "Special Attack (+100)", evolution: "Final Stage" },
+            { id: 30, name: "Lotad", type: "Water/Grass", apex: false, evolution: "Lombre at Lv.14" },
+            { id: 31, name: "Lombre", type: "Water/Grass", apex: false, evolution: "Ludicolo via Water Stone" },
+            { id: 32, name: "Ludicolo", type: "Water/Grass", apex: false, evolution: "Final Stage" },
+            { id: 33, name: "Fletchling", type: "Normal/Flying", apex: false, evolution: "Fletchinder at Lv.17" },
+            { id: 34, name: "Fletchinder", type: "Fire/Flying", apex: false, evolution: "Talonflame at Lv.35" },
+            { id: 35, name: "Talonflame", type: "Fire/Flying", apex: false, evolution: "Final Stage" },
+            { id: 36, name: "Aurauan Doduo", type: "Grass/Fighting", apex: false, evolution: "Aurauan Dodrio at Lv.31" },
+            { id: 37, name: "Aurauan Dodrio", type: "Grass/Fighting", apex: false, evolution: "Final Stage" },
+            { id: 38, name: "Aurauan Helioptile", type: "Dragon/Fire", apex: false, evolution: "Aurauan Heliolisk via Sun Stone" },
+            { id: 39, name: "Aurauan Heliolisk", type: "Dragon/Fire", apex: "Special Attack (+100)", evolution: "Final Stage" },
+            { id: 40, name: "Aurauan Dewpider", type: "Bug/Ground", apex: false, evolution: "Aurauan Araquanid at Lv.22" },
+            { id: 41, name: "Aurauan Araquanid", type: "Bug/Ground", apex: "Defense (+100)", evolution: "Final Stage" },
+            { id: 42, name: "Aurauan Carbink", type: "Psychic/Ground", apex: "Special Attack (+100)", evolution: "Final Stage" },
+            { id: 43, name: "Aurauan Cramorant", type: "Water/Ground", apex: false, evolution: "Final Stage" },
+            { id: 44, name: "Aurauan Psyduck", type: "Fire/Psychic", apex: false, evolution: "Aurauan Golduck at Lv.33" },
+            { id: 45, name: "Aurauan Golduck", type: "Fire/Psychic", apex: false, evolution: "Final Stage" },
+            { id: 46, name: "Aurauan Noibat", type: "Electric/Steel", apex: false, evolution: "Aurauan Noivern at Lv.48" },
+            { id: 47, name: "Aurauan Noivern", type: "Electric/Steel", apex: "Speed (+100)", evolution: "Final Stage" },
+            { id: 48, name: "Paldean Wooper", type: "Poison/Ground", apex: false, evolution: "Clodsire at Lv.20" },
+            { id: 49, name: "Clodsire", type: "Poison/Ground", apex: "HP (+100)", evolution: "Final Stage" },
+            { id: 50, name: "Skarmite", type: "Steel/Flying", apex: false, evolution: "Skarmory via Friendship" },
+            { id: 51, name: "Skarmory", type: "Steel/Flying", apex: false, evolution: "Final Stage" },
+            { id: 52, name: "Varoom", type: "Steel/Poison", apex: false, evolution: "Revavroom at Lv.40" },
+            { id: 53, name: "Revavroom", type: "Steel/Poison", apex: "Speed (+100)", evolution: "Final Stage" },
+            { id: 54, name: "Magnemite", type: "Electric/Steel", apex: false, evolution: "Magneton at Lv.30" },
+            { id: 55, name: "Magneton", type: "Electric/Steel", apex: false, evolution: "Magnezone via Thunder Stone" },
+            { id: 56, name: "Magnezone", type: "Electric/Steel", apex: false, evolution: "Final Stage" },
+            { id: 57, name: "Toxel", type: "Electric/Poison", apex: false, evolution: "Toxtricity at Lv.30" },
+            { id: 58, name: "Toxtricity", type: "Electric/Poison", apex: "Special Attack (+100)", evolution: "Final Stage" },
+            { id: 59, name: "Pawniard", type: "Dark/Steel", apex: false, evolution: "Bisharp at Lv.52" },
+            { id: 60, name: "Bisharp", type: "Dark/Steel", apex: false, evolution: "Kingambit via Leader's Crest" },
+            { id: 61, name: "Kingambit", type: "Dark/Steel", apex: "Attack (+100)", evolution: "Final Stage" },
+            { id: 62, name: "Sandile", type: "Ground/Dark", apex: false, evolution: "Krokorok at Lv.29" },
+            { id: 63, name: "Krokorok", type: "Ground/Dark", apex: false, evolution: "Krookodile at Lv.40" },
+            { id: 64, name: "Krookodile", type: "Ground/Dark", apex: "Speed (+100)", evolution: "Final Stage" },
+            { id: 65, name: "Salandit", type: "Poison/Fire", apex: false, evolution: "Salazzle at Lv.33 (Female)" },
+            { id: 66, name: "Salazzle", type: "Poison/Fire", apex: false, evolution: "Final Stage" },
+            { id: 67, name: "Scraggy", type: "Dark/Fighting", apex: false, evolution: "Scrafty at Lv.39" },
+            { id: 68, name: "Scrafty", type: "Dark/Fighting", apex: false, evolution: "Final Stage" },
+            { id: 69, name: "Grimer", type: "Poison", apex: false, evolution: "Muk at Lv.38" },
+            { id: 70, name: "Muk", type: "Poison", apex: false, evolution: "Final Stage" },
+            { id: 71, name: "Trubbish", type: "Poison", apex: false, evolution: "Garbodor at Lv.36" },
+            { id: 72, name: "Garbodor", type: "Poison", apex: false, evolution: "Final Stage" },
+            { id: 73, name: "Houndour", type: "Dark/Fire", apex: false, evolution: "Houndoom at Lv.24" },
+            { id: 74, name: "Houndoom", type: "Dark/Fire", apex: false, evolution: "Final Stage" },
+            { id: 75, name: "Rotom", type: "Electric/Ghost", apex: false, evolution: "Final Stage" },
+            { id: 76, name: "Pawmi", type: "Electric", apex: false, evolution: "Pawmo at Lv.18" },
+            { id: 77, name: "Pawmo", type: "Electric/Fighting", apex: false, evolution: "Pawmot via Let's Go 1000 Steps" },
+            { id: 78, name: "Pawmot", type: "Electric/Fighting", apex: false, evolution: "Final Stage" },
+            { id: 79, name: "Beldum", type: "Steel/Psychic", apex: false, evolution: "Metang at Lv.20" },
+            { id: 80, name: "Metang", type: "Steel/Psychic", apex: false, evolution: "Metagross at Lv.45" },
+            { id: 81, name: "Metagross", type: "Steel/Psychic", apex: false, evolution: "Final Stage" },
+            { id: 82, name: "Machop", type: "Fighting", apex: false, evolution: "Machoke at Lv.28" },
+            { id: 83, name: "Machoke", type: "Fighting", apex: false, evolution: "Machamp via Trade" },
+            { id: 84, name: "Machamp", type: "Fighting", apex: false, evolution: "Final Stage" },
+            { id: 85, name: "Rhyhorn", type: "Ground/Rock", apex: false, evolution: "Rhydon at Lv.42" },
+            { id: 86, name: "Rhydon", type: "Ground/Rock", apex: false, evolution: "Rhyperior via Protector" },
+            { id: 87, name: "Capsakid", type: "Grass", apex: false, evolution: "Scovillain via Fire Stone" },
+            { id: 88, name: "Scovillain", type: "Grass/Fire", apex: "Special Attack (+100)", evolution: "Final Stage" },
+            { id: 89, name: "Charcadet", type: "Fire", apex: false, evolution: "Armarouge/Ceruledge via Armor" },
+            { id: 90, name: "Armarouge", type: "Fire/Psychic", apex: false, evolution: "Final Stage" },
+            { id: 91, name: "Ceruledge", type: "Fire/Ghost", apex: "Attack (+100)", evolution: "Final Stage" },
+            { id: 92, name: "Tinkatink", type: "Fairy/Steel", apex: false, evolution: "Tinkatuff at Lv.24" },
+            { id: 93, name: "Tinkatuff", type: "Fairy/Steel", apex: false, evolution: "Tinkaton at Lv.38" },
+            { id: 94, name: "Tinkaton", type: "Fairy/Steel", apex: "Attack (+100)", evolution: "Final Stage" },
+            { id: 95, name: "Sizzlip", type: "Fire", apex: false, evolution: "Torkoal via Hot Area" },
+            { id: 96, name: "Torkoal", type: "Fire", apex: false, evolution: "Final Stage" },
+            { id: 97, name: "Larvesta", type: "Bug/Fire", apex: false, evolution: "Volcarona at Lv.59" },
+            { id: 98, name: "Volcarona", type: "Bug/Fire", apex: "Special Defense (+100)", evolution: "Final Stage" },
+            { id: 99, name: "Sableye", type: "Dark/Ghost", apex: false, evolution: "Moppetgeist via Night Level" },
+            { id: 100, name: "Moppetgeist", type: "Dark/Ghost", apex: "Defense (+100)", evolution: "Final Stage" },
+            { id: 101, name: "Gastly", type: "Ghost/Poison", apex: false, evolution: "Haunter at Lv.25" },
+            { id: 102, name: "Haunter", type: "Ghost/Poison", apex: false, evolution: "Gengar via Trade" },
+            { id: 103, name: "Gengar", type: "Ghost/Poison", apex: false, evolution: "Final Stage" },
+            { id: 104, name: "Litwick", type: "Ghost/Fire", apex: false, evolution: "Lampent at Lv.41" },
+            { id: 105, name: "Lampent", type: "Ghost/Fire", apex: false, evolution: "Chandelure via Dusk Stone" },
+            { id: 106, name: "Chandelure", type: "Ghost/Fire", apex: false, evolution: "Final Stage" },
+            { id: 107, name: "Impidimp", type: "Dark/Fairy", apex: false, evolution: "Morgrem at Lv.32" },
+            { id: 108, name: "Morgrem", type: "Dark/Fairy", apex: false, evolution: "Grimmsnarl at Lv.42" },
+            { id: 109, name: "Grimmsnarl", type: "Dark/Fairy", apex: false, evolution: "Final Stage" },
+            { id: 110, name: "Mareanie", type: "Poison/Water", apex: false, evolution: "Toxapex at Lv.38" },
+            { id: 111, name: "Toxapex", type: "Poison/Water", apex: false, evolution: "Final Stage" },
+            { id: 112, name: "Feebas", type: "Water", apex: false, evolution: "Milotic via Prism Scale" },
+            { id: 113, name: "Milotic", type: "Water", apex: false, evolution: "Final Stage" },
+            { id: 114, name: "Azurill", type: "Normal/Fairy", apex: false, evolution: "Marill via Friendship" },
+            { id: 115, name: "Marill", type: "Water/Fairy", apex: false, evolution: "Azumarill at Lv.18" },
+            { id: 116, name: "Azumarill", type: "Water/Fairy", apex: false, evolution: "Final Stage" },
+            { id: 117, name: "Hippopotas", type: "Ground", apex: false, evolution: "Hippowdon at Lv.34" },
+            { id: 118, name: "Hippowdon", type: "Ground", apex: false, evolution: "Final Stage" },
+            { id: 119, name: "Baltoy", type: "Ground/Psychic", apex: false, evolution: "Claydol at Lv.36" },
+            { id: 120, name: "Claydol", type: "Ground/Psychic", apex: false, evolution: "Final Stage" },
+            { id: 121, name: "Wingull", type: "Water/Flying", apex: false, evolution: "Pelipper at Lv.25" },
+            { id: 122, name: "Pelipper", type: "Water/Flying", apex: false, evolution: "Final Stage" },
+            { id: 123, name: "Buizel", type: "Water", apex: false, evolution: "Floatzel at Lv.26" },
+            { id: 124, name: "Floatzel", type: "Water", apex: false, evolution: "Final Stage" },
+            { id: 125, name: "Shieldon", type: "Rock/Steel", apex: false, evolution: "Bastiodon at Lv.30" },
+            { id: 126, name: "Bastiodon", type: "Rock/Steel", apex: "Defense (+100)", evolution: "Final Stage" },
+            { id: 127, name: "Kabuto", type: "Rock/Water", apex: false, evolution: "Kabutops at Lv.40" },
+            { id: 128, name: "Kabutops", type: "Rock/Water", apex: false, evolution: "Dracaspian via Ancient Power" },
+            { id: 129, name: "Dracaspian", type: "Rock/Water", apex: "Attack (+100)", evolution: "Final Stage" },
+            { id: 130, name: "Rhyperior", type: "Ground/Rock", apex: false, evolution: "Final Stage" },
+            { id: 131, name: "Geodude", type: "Rock/Ground", apex: false, evolution: "Graveler at Lv.25" },
+            { id: 132, name: "Graveler", type: "Rock/Ground", apex: false, evolution: "Golem via Trade" },
+            { id: 133, name: "Golem", type: "Rock/Ground", apex: false, evolution: "Final Stage" },
+            { id: 134, name: "Silicobra", type: "Ground", apex: false, evolution: "Sandaconda at Lv.36" },
+            { id: 135, name: "Sandaconda", type: "Ground", apex: false, evolution: "Final Stage" },
+            { id: 136, name: "Larvitar", type: "Rock/Ground", apex: false, evolution: "Pupitar at Lv.30" },
+            { id: 137, name: "Pupitar", type: "Rock/Ground", apex: false, evolution: "Tyranitar at Lv.55" },
+            { id: 138, name: "Tyranitar", type: "Rock/Dark", apex: false, evolution: "Final Stage" },
+            { id: 139, name: "Trapinch", type: "Ground", apex: false, evolution: "Vibrava at Lv.35" },
+            { id: 140, name: "Vibrava", type: "Ground/Dragon", apex: false, evolution: "Flygon at Lv.45" },
+            { id: 141, name: "Flygon", type: "Ground/Dragon", apex: false, evolution: "Final Stage" },
+            { id: 142, name: "Cacnea", type: "Grass", apex: false, evolution: "Cacturne at Lv.32" },
+            { id: 143, name: "Cacturne", type: "Grass/Dark", apex: false, evolution: "Final Stage" },
+            { id: 144, name: "Maractus", type: "Grass", apex: false, evolution: "Final Stage" },
+            { id: 145, name: "Sigilyph", type: "Psychic/Flying", apex: false, evolution: "Final Stage" },
+            { id: 146, name: "Sandshrew", type: "Ground", apex: false, evolution: "Sandslash at Lv.22" },
+            { id: 147, name: "Sandslash", type: "Ground", apex: false, evolution: "Final Stage" },
+            { id: 148, name: "Numel", type: "Fire/Ground", apex: false, evolution: "Camerupt at Lv.33" },
+            { id: 149, name: "Camerupt", type: "Fire/Ground", apex: false, evolution: "Final Stage" },
+            { id: 150, name: "Slugma", type: "Fire", apex: false, evolution: "Magcargo at Lv.38" },
+            { id: 151, name: "Magcargo", type: "Fire/Rock", apex: false, evolution: "Final Stage" },
+            { id: 152, name: "Skrelp", type: "Poison/Water", apex: false, evolution: "Dragalge at Lv.48" },
+            { id: 153, name: "Dragalge", type: "Poison/Dragon", apex: false, evolution: "Final Stage" },
+            { id: 154, name: "Horsea", type: "Water", apex: false, evolution: "Seadra at Lv.32" },
+            { id: 155, name: "Seadra", type: "Water", apex: false, evolution: "Kingdra via Dragon Scale" },
+            { id: 156, name: "Kingdra", type: "Water/Dragon", apex: false, evolution: "Final Stage" },
+            { id: 157, name: "Ralts", type: "Psychic/Fairy", apex: false, evolution: "Kirlia at Lv.20" },
+            { id: 158, name: "Kirlia", type: "Psychic/Fairy", apex: false, evolution: "Gardevoir/Gallade at Lv.30" },
+            { id: 159, name: "Gardevoir", type: "Psychic/Fairy", apex: false, evolution: "Final Stage" },
+            { id: 160, name: "Gallade", type: "Psychic/Fighting", apex: false, evolution: "Final Stage" },
+            { id: 161, name: "Elekid", type: "Electric", apex: false, evolution: "Electabuzz at Lv.30" },
+            { id: 162, name: "Electabuzz", type: "Electric", apex: false, evolution: "Electivire via Electirizer" },
+            { id: 163, name: "Electivire", type: "Electric", apex: false, evolution: "Final Stage" },
+            { id: 164, name: "Magby", type: "Fire", apex: false, evolution: "Magmar at Lv.30" },
+            { id: 165, name: "Magmar", type: "Fire", apex: false, evolution: "Magmortar via Magmarizer" },
+            { id: 166, name: "Magmortar", type: "Fire", apex: false, evolution: "Final Stage" },
+            { id: 167, name: "Aron", type: "Steel/Rock", apex: false, evolution: "Lairon at Lv.32" },
+            { id: 168, name: "Lairon", type: "Steel/Rock", apex: false, evolution: "Aggron at Lv.42" },
+            { id: 169, name: "Aggron", type: "Steel/Rock", apex: false, evolution: "Final Stage" },
+            { id: 170, name: "Ferroseed", type: "Grass/Steel", apex: false, evolution: "Ferrothorn at Lv.40" },
+            { id: 171, name: "Ferrothorn", type: "Grass/Steel", apex: false, evolution: "Final Stage" },
+            { id: 172, name: "Croagunk", type: "Poison/Fighting", apex: false, evolution: "Toxicroak at Lv.37" },
+            { id: 173, name: "Toxicroak", type: "Poison/Fighting", apex: false, evolution: "Final Stage" },
+            { id: 174, name: "Zubat", type: "Poison/Flying", apex: false, evolution: "Golbat at Lv.22" },
+            { id: 175, name: "Golbat", type: "Poison/Flying", apex: false, evolution: "Crobat via Friendship" },
+            { id: 176, name: "Crobat", type: "Poison/Flying", apex: false, evolution: "Final Stage" },
+            { id: 177, name: "Gligar", type: "Ground/Flying", apex: false, evolution: "Gliscor via Razor Fang" },
+            { id: 178, name: "Gliscor", type: "Ground/Flying", apex: false, evolution: "Final Stage" },
+            { id: 179, name: "Sneasel", type: "Dark/Ice", apex: false, evolution: "Weavile via Razor Claw" },
+            { id: 180, name: "Weavile", type: "Dark/Ice", apex: false, evolution: "Final Stage" },
+            { id: 181, name: "Swinub", type: "Ice/Ground", apex: false, evolution: "Piloswine at Lv.33" },
+            { id: 182, name: "Piloswine", type: "Ice/Ground", apex: false, evolution: "Mamoswine via Ancient Power" },
+            { id: 183, name: "Mamoswine", type: "Ice/Ground", apex: false, evolution: "Final Stage" },
+            { id: 184, name: "Dunsparce", type: "Normal", apex: false, evolution: "Dudunsparce via Hyper Drill" },
+            { id: 185, name: "Dudunsparce", type: "Normal", apex: false, evolution: "Final Stage" },
+            { id: 186, name: "Hawlucha", type: "Fighting/Flying", apex: false, evolution: "Final Stage" },
+            { id: 187, name: "Falinks", type: "Fighting", apex: false, evolution: "Final Stage" },
+            { id: 188, name: "Cyclizar", type: "Dragon/Normal", apex: false, evolution: "Final Stage" },
+            { id: 189, name: "Gible", type: "Dragon/Ground", apex: false, evolution: "Gabite at Lv.24" },
+            { id: 190, name: "Gabite", type: "Dragon/Ground", apex: false, evolution: "Garchomp at Lv.48" },
+            { id: 191, name: "Garchomp", type: "Dragon/Ground", apex: false, evolution: "Final Stage" },
+            { id: 192, name: "Dratini", type: "Dragon", apex: false, evolution: "Dragonair at Lv.30" },
+            { id: 193, name: "Dragonair", type: "Dragon", apex: false, evolution: "Dragonite at Lv.55" },
+            { id: 194, name: "Dragonite", type: "Dragon/Flying", apex: false, evolution: "Final Stage" },
+            { id: 195, name: "Goomy", type: "Dragon", apex: false, evolution: "Sliggoo at Lv.40" },
+            { id: 196, name: "Sliggoo", type: "Dragon", apex: false, evolution: "Goodra at Lv.50 + Rain" },
+            { id: 197, name: "Goodra", type: "Dragon", apex: false, evolution: "Final Stage" },
+            { id: 198, name: "Deino", type: "Dragon/Dark", apex: false, evolution: "Zweilous at Lv.50" },
+            { id: 199, name: "Zweilous", type: "Dragon/Dark", apex: false, evolution: "Hydreigon at Lv.64" },
+            { id: 200, name: "Hydreigon", type: "Dragon/Dark", apex: false, evolution: "Final Stage" },
+            { id: 201, name: "Axew", type: "Dragon", apex: false, evolution: "Fraxure at Lv.38" },
+            { id: 202, name: "Fraxure", type: "Dragon", apex: false, evolution: "Haxorus at Lv.48" },
+            { id: 203, name: "Haxorus", type: "Dragon", apex: false, evolution: "Final Stage" },
+            { id: 204, name: "Bagon", type: "Dragon", apex: false, evolution: "Shelgon at Lv.30" },
+            { id: 205, name: "Shelgon", type: "Dragon", apex: false, evolution: "Salamence at Lv.50" },
+            { id: 206, name: "Salamence", type: "Dragon/Flying", apex: "Attack (+100)", evolution: "Final Stage" },
+            { id: 207, name: "Dreepy", type: "Dragon/Ghost", apex: false, evolution: "Drakloak at Lv.50" },
+            { id: 208, name: "Drakloak", type: "Dragon/Ghost", apex: false, evolution: "Dragapult at Lv.60" },
+            { id: 209, name: "Dragapult", type: "Dragon/Ghost", apex: false, evolution: "Final Stage" },
+            { id: 210, name: "Frigibax", type: "Dragon/Ice", apex: false, evolution: "Arctibax at Lv.35" },
+            { id: 211, name: "Arctibax", type: "Dragon/Ice", apex: false, evolution: "Baxcalibur at Lv.54" },
+            { id: 212, name: "Baxcalibur", type: "Dragon/Ice", apex: false, evolution: "Final Stage" },
+            { id: 213, name: "Riolu", type: "Fighting", apex: false, evolution: "Lucario via Friendship" },
+            { id: 214, name: "Lucario", type: "Fighting/Steel", apex: "Attack (+100)", evolution: "Final Stage" },
+            { id: 215, name: "Nacli", type: "Rock", apex: false, evolution: "Naclstack at Lv.24" },
+            { id: 216, name: "Naclstack", type: "Rock", apex: false, evolution: "Garganacl at Lv.38" },
+            { id: 217, name: "Garganacl", type: "Rock", apex: false, evolution: "Final Stage" },
+            { id: 218, name: "Kubfu", type: "Fighting", apex: false, evolution: "Urshifu via Scroll" },
+            { id: 219, name: "Urshifu", type: "Fighting/Dark", apex: false, evolution: "Final Stage" },
+            { id: 220, name: "Roaring Moon", type: "Dragon/Dark", apex: false, evolution: "Final Stage" },
+            { id: 221, name: "Terratoto", type: "Ground/Fairy", apex: false, evolution: "Guardian of Lowlands" },
+            { id: 222, name: "Ignifae", type: "Fire/Fairy", apex: false, evolution: "Guardian of Canyons" },
+            { id: 223, name: "Paludash", type: "Water/Fairy", apex: false, evolution: "Guardian of Wetlands" },
+            { id: 224, name: "Aloftis", type: "Electric/Fairy", apex: false, evolution: "Guardian of Sky Ridge" },
+            { id: 225, name: "Tectoneth", type: "Dragon/Rock", apex: "True Apex", evolution: "Mascot of Ignition" },
+            { id: 226, name: "Turborix", type: "Dragon/Steel", apex: "True Apex", evolution: "Mascot of Overdrive" },
+            { id: 227, name: "Apexeon", type: "Normal", apex: "Source of Apex", evolution: "The Apex Catalyst" },
+            { id: 228, name: "Astrolyph", type: "Cosmic/Psychic", apex: false, evolution: "The Star-Map Entity" },
+            { id: 229, name: "Terraustra", type: "Psychic/Ground", apex: false, evolution: "Ancient Wanderer" },
+            { id: 230, name: "Zeraora", type: "Electric", apex: false, evolution: "Wandering Mythical" },
+            { id: 231, name: "Bunyipod", type: "Water/Dark", apex: false, evolution: "Mythical Event" },
+            { id: 232, name: "Solorun", type: "Electric/Fire", apex: false, evolution: "Mythical Event" }
+        ];
+
+        // MAP ROUTE LINE DATA
+        const REGION_MAP = [
+            { id: 'frond', name: "Frond Village", desc: "A breezy coastal town surrounded by lush fern trees.", level: 1, locks: [], icon: "fa-house-chimney-window", canHeal: true },
+            { id: 'route1', name: "Route 1: Scrublands", desc: "Red dust corridors filled with aggressive early Jackaroos.", level: 5, locks: [], icon: "fa-road" },
+            { id: 'gym1', name: "Bramble Maze (Gym 1)", desc: "Silas's Grass-type arena.", level: 12, locks: [], gym: { leader: "Silas", type: "Grass" }, icon: "fa-leaf", canHeal: true },
+            { id: 'route2', name: "Route 2: Rust-Belt", desc: "Abandoned asphalt paths.", level: 15, locks: ['Bramble Badge'], lockDesc: "Requires Bramble Badge", icon: "fa-road" },
+            { id: 'scrapyard', name: "Scrapyard City (Gym 2)", desc: "Mesa's Steel-type domain.", level: 20, locks: ['Bramble Badge'], lockDesc: "Requires Bramble Badge", gym: { leader: "Mesa", type: "Steel" }, icon: "fa-dumpster", canHeal: true },
+            { id: 'route3', name: "Route 3: Mangroves", desc: "A thick water maze of slippery wooden boardwalks.", level: 25, locks: ['Rivet Badge'], lockDesc: "Requires Rivet Badge", icon: "fa-water" },
+            { id: 'gym3', name: "Oasis Wetlands (Gym 3)", desc: "Bindi's Water-type billabong.", level: 28, locks: ['Rivet Badge'], lockDesc: "Requires Rivet Badge", gym: { leader: "Bindi", type: "Water" }, icon: "fa-droplet", canHeal: true },
+            { id: 'route4', name: "Route 4: Canyons", desc: "Shifting desert sands.", level: 32, locks: ['Billabong Badge'], lockDesc: "Requires Billabong Badge", icon: "fa-mountain-sun" },
+            { id: 'gym4', name: "Shimmering Sands (Gym 4)", desc: "Darcy's Psychic mirage.", level: 35, locks: ['Billabong Badge'], lockDesc: "Requires Billabong Badge", gym: { leader: "Darcy", type: "Psychic" }, icon: "fa-eye", canHeal: true },
+            { id: 'route5', name: "Route 5: Asphalt", desc: "High-speed transit grids.", level: 38, locks: ['Mirage Badge'], lockDesc: "Requires Mirage Badge", icon: "fa-road" },
+            { id: 'gym5', name: "Asphalt Grid (Gym 5)", desc: "Axel's Electric terminal.", level: 42, locks: ['Mirage Badge'], lockDesc: "Requires Mirage Badge", gym: { leader: "Axel", type: "Electric" }, icon: "fa-bolt", canHeal: true },
+            { id: 'route6', name: "Route 6: Basalt", desc: "Deep black basalt vents.", level: 45, locks: ['Voltage Badge', 'Treads'], lockDesc: "Requires Voltage Badge & Treads", icon: "fa-fire" },
+            { id: 'volcano', name: "Volcanic Canyons (Gym 6)", desc: "Sear's Fire-type crater.", level: 48, locks: ['Voltage Badge', 'Treads'], lockDesc: "Requires Voltage Badge & Treads", gym: { leader: "Sear", type: "Fire" }, icon: "fa-fire", canHeal: true },
+            { id: 'basin', name: "Dugout Basin (Gym 7)", desc: "Kira's Ghost-type mines and gem merchants.", level: 52, locks: ['Ember Badge'], lockDesc: "Requires Ember Badge", gym: { leader: "Kira", type: "Ghost" }, icon: "fa-ghost", canHeal: true },
+            { id: 'road8', name: "Route 8: Ascent", desc: "Sheer mountain trail locked under massive wind paths.", level: 58, locks: ['Phantom Badge', 'Booster'], lockDesc: "Requires Phantom Badge & Booster", icon: "fa-mountain" },
+            { id: 'gym8', name: "Apex Summit (Gym 8)", desc: "Garrick's Dragon colosseum.", level: 60, locks: ['Phantom Badge', 'Booster'], lockDesc: "Requires Phantom Badge & Booster", gym: { leader: "Garrick", type: "Dragon" }, icon: "fa-dragon", canHeal: true },
+            { id: 'league', name: "Victory Road (Champion)", desc: "The ultimate peak. Challenge Jax.", level: 70, locks: ['Apex Badge'], lockDesc: "Requires Apex Badge", gym: { leader: "Jax", type: "Ultimate Champion" }, icon: "fa-crown", canHeal: true }
+        ];
+
+        // GAME STATE DATA
+        let gameState = {
+            version: "",
+            starter: null,
+            party: [],
+            badges: [],
+            scrap: 30,
+            scrapBalls: 5,
+            potions: 5,
+            inventory: [],
+            upgrades: [],
+            location: 'frond',
+            activeBattle: null
+        };
+
+        // THEME TOGGLE
+        function toggleTheme() {
+            playSound('click');
+            const body = document.body;
+            const btn = document.getElementById('theme-toggle-btn');
+            body.classList.toggle('light-mode');
+            
+            if (body.classList.contains('light-mode')) {
+                btn.innerHTML = '<i class="fa-solid fa-moon"></i>';
+                btn.classList.replace('text-amber-400', 'text-cyan-600');
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+                btn.classList.replace('text-cyan-600', 'text-amber-400');
+            }
+        }
+
+        // UI NAVIGATION FUNCTIONS
+        function selectVersion(v) {
+            playSound('click');
+            gameState.version = v;
+            document.getElementById('hud-version').innerText = v;
+            if (v === 'Ignition') {
+                document.getElementById('hud-version').className = "font-bold text-orange-400";
+            } else {
+                document.getElementById('hud-version').className = "font-bold text-cyan-400";
+            }
+            showScreen('screen-starter');
+        }
+
+        function pickStarter(starterName) {
+            playSound('level_up');
+            let starterObj;
+            if (starterName === 'Snivy') {
+                starterObj = { name: "Snivy", type: "Grass", hp: 45, maxHp: 45, atk: 45, def: 55, spAtk: 45, spDef: 55, speed: 65, level: 5, xp: 0, sprite: "🦎", isApex: false, apexStat: "speed" };
+            } else if (starterName === 'Torchic') {
+                starterObj = { name: "Torchic", type: "Fire", hp: 45, maxHp: 45, atk: 60, def: 40, spAtk: 70, spDef: 50, speed: 45, level: 5, xp: 0, sprite: "🐤", isApex: false, apexStat: "atk" };
+            } else {
+                starterObj = { name: "Froakie", type: "Water", hp: 45, maxHp: 45, atk: 55, def: 40, spAtk: 60, spDef: 40, speed: 70, level: 5, xp: 0, sprite: "🐸", isApex: false, apexStat: "spAtk" };
+            }
+            
+            gameState.starter = starterName;
+            gameState.party.push(starterObj);
+            
+            showCustomModal("fa-handshake", "ADVENTURE BEGINS", `You chose ${starterObj.name}! Professor Banksia hands you a maps and wishes you luck on the rough roads ahead.`);
+            
+            // Show HUD
+            document.getElementById('hud-stats').classList.remove('hidden');
+            showScreen('screen-dashboard');
+            updateDashboard();
+        }
+
+        function showScreen(screenId) {
+            const screens = ['screen-intro', 'screen-starter', 'screen-dashboard', 'screen-battle'];
+            screens.forEach(s => {
+                document.getElementById(s).classList.add('hidden');
+            });
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        function switchTab(tabId) {
+            playSound('click');
+            const tabs = ['map', 'dex', 'shop'];
+            tabs.forEach(t => {
+                document.getElementById(`tab-${t}`).className = "tab-btn px-4 py-2 rounded font-bold transition-all text-gray-400 hover:text-white";
+                document.getElementById(`tab-content-${t}`).classList.add('hidden');
+            });
+            
+            document.getElementById(`tab-${tabId}`).className = "tab-btn px-4 py-2 rounded font-bold transition-all bg-amber-500 text-gray-900";
+            document.getElementById(`tab-content-${tabId}`).classList.remove('hidden');
+
+            if (tabId === 'dex') {
+                renderPokedex();
+            }
+        }
+
+        // SWAP LEAD COMBATANT
+        function setLeadPokemon(index) {
+            if (index === 0) return; // already lead
+            playSound('heal');
+            const target = gameState.party[index];
+            gameState.party.splice(index, 1);
+            gameState.party.unshift(target);
+            updateDashboard();
+            showCustomModal("fa-arrows-spin", "LEAD ROTATED", `${target.name} has been rotated to your leading combat slot.`);
+        }
+
+        // UPDATE DASHBOARD PANELS
+        function updateDashboard() {
+            // HUD values
+            document.getElementById('hud-scrap').innerText = gameState.scrap;
+            document.getElementById('hud-balls').innerText = gameState.scrapBalls;
+            document.getElementById('hud-potions').innerText = gameState.potions || 0;
+            document.getElementById('hud-badges').innerText = `${gameState.badges.length}/8`;
+            
+            const currentLoc = REGION_MAP.find(l => l.id === gameState.location);
+            document.getElementById('hud-location').innerText = currentLoc.name;
+
+            // Render Map Visual nodes (The road links)
+            const mapNodes = document.getElementById('map-visual-nodes');
+            mapNodes.innerHTML = '';
+            REGION_MAP.forEach((loc, idx) => {
+                const isLocked = loc.locks.some(lock => !(gameState.upgrades.includes(lock) || gameState.badges.includes(lock)));
+                const isCurrent = gameState.location === loc.id;
+                
+                let dotStyle = "bg-gray-800 border-gray-700 text-gray-500";
+                if (isLocked) {
+                    dotStyle = "bg-gray-950/40 border-gray-950 text-gray-800";
+                } else if (isCurrent) {
+                    dotStyle = "bg-amber-500 border-yellow-300 text-gray-950 ring-4 ring-amber-500/30 scale-125 z-10 animate-pulse";
+                } else {
+                    dotStyle = "bg-emerald-600 border-emerald-400 text-white";
+                }
+
+                mapNodes.innerHTML += `
+                    <div class="flex flex-col items-center relative">
+                        <button onclick="selectLocation('${loc.id}')" ${isLocked ? 'disabled' : ''} class="w-10 h-10 rounded-full border-2 ${dotStyle} flex items-center justify-center transition-all duration-300 transform hover:scale-110 shrink-0">
+                            <i class="fa-solid ${isLocked ? 'fa-lock text-xs' : loc.icon} text-sm"></i>
+                        </button>
+                        <span class="text-[9px] font-bold mt-1 max-w-[65px] text-center hidden md:block ${isCurrent ? 'text-amber-400' : 'text-gray-500'}">${loc.name.split(':')[0]}</span>
+                    </div>
+                `;
+            });
+
+            // Render Map Buttons grid
+            const mapGrid = document.getElementById('map-locations-grid');
+            mapGrid.innerHTML = '';
+            
+            REGION_MAP.forEach(loc => {
+                const isLocked = loc.locks.some(lock => !(gameState.upgrades.includes(lock) || gameState.badges.includes(lock)));
+                const isCurrent = gameState.location === loc.id;
+                
+                let btnStyle = "bg-gray-950 hover:bg-gray-800 text-gray-400 border border-gray-800 shadow-md";
+                if (isLocked) {
+                    btnStyle = "bg-gray-950/20 text-gray-600 border border-gray-950 cursor-not-allowed";
+                } else if (isCurrent) {
+                    btnStyle = "bg-amber-600/20 text-amber-500 border-2 border-amber-500 shadow-amber-900/10";
+                }
+
+                mapGrid.innerHTML += `
+                    <button onclick="selectLocation('${loc.id}')" ${isLocked ? 'disabled' : ''} class="${btnStyle} p-4 rounded-lg flex flex-col items-center justify-between transition-all min-h-[100px]">
+                        <i class="fa-solid ${loc.icon} text-2xl ${isLocked ? 'text-gray-700' : isCurrent ? 'text-amber-500' : 'text-gray-500'}"></i>
+                        <span class="text-sm font-bold mt-2 text-center">${loc.name}</span>
+                        ${isLocked ? `<span class="text-[10px] text-red-500 mt-2 uppercase font-bold text-center leading-tight"><i class="fa-solid fa-lock block mb-1"></i> ${loc.lockDesc}</span>` : ''}
+                    </button>
+                `;
+            });
+
+            // Update Current Selection Box
+            const selectedLoc = REGION_MAP.find(l => l.id === gameState.location);
+            document.getElementById('selected-loc-name').innerText = selectedLoc.name;
+            document.getElementById('selected-loc-desc').innerText = selectedLoc.desc;
+            document.getElementById('selected-loc-level').innerText = `Recommended Level: ${selectedLoc.level}`;
+            document.getElementById('selected-loc-icon').innerHTML = `<i class="fa-solid ${selectedLoc.icon}"></i>`;
+
+            // Heal Button State
+            const healBtn = document.getElementById('heal-btn');
+            if (selectedLoc.canHeal) {
+                healBtn.classList.remove('hidden');
+            } else {
+                healBtn.classList.add('hidden');
+            }
+
+            // Gym Challenge Button State
+            const gymBtn = document.getElementById('gym-challenge-btn');
+            if (selectedLoc.gym) {
+                gymBtn.classList.remove('hidden');
+                gymBtn.innerText = `Challenge ${selectedLoc.gym.leader}`;
+            } else {
+                gymBtn.classList.add('hidden');
+            }
+
+            // Party List
+            const partyContainer = document.getElementById('party-list');
+            partyContainer.innerHTML = '';
+            document.getElementById('party-count').innerText = `${gameState.party.length}/6`;
+            
+            gameState.party.forEach((poke, idx) => {
+                const isLead = idx === 0;
+                partyContainer.innerHTML += `
+                    <div onclick="setLeadPokemon(${idx})" class="cursor-pointer bg-gray-950 p-3 rounded-lg border ${isLead ? 'border-amber-500/80 bg-amber-950/10' : 'border-gray-800'} flex justify-between items-center hover:border-gray-600 transition-all">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl">${poke.sprite || '🐲'}</span>
+                            <div>
+                                <h4 class="font-bold text-gray-100 flex items-center gap-1">
+                                    <span>${poke.name}</span> 
+                                    <span class="text-xs text-gray-400">Lv.${poke.level}</span>
+                                </h4>
+                                <div class="flex gap-1 items-center mt-1">
+                                    <span class="text-[9px] bg-gray-800 text-cyan-400 px-1.5 py-0.5 rounded font-bold">${poke.type}</span>
+                                    ${isLead ? '<span class="text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-black uppercase">Lead</span>' : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs font-mono text-gray-400">HP: ${poke.hp}/${poke.maxHp}</span>
+                            <div class="w-20 bg-gray-800 h-2 rounded-full overflow-hidden mt-1">
+                                <div class="bg-gradient-to-r from-emerald-500 to-green-400 h-full animate-pulse" style="width: ${(poke.hp / poke.maxHp) * 100}%"></div>
+                            </div>
+                            <span class="text-[9px] font-mono text-gray-500 mt-0.5 block">EXP: ${poke.xp}/100</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Render Inventory held gear
+            const invContainer = document.getElementById('inventory-list');
+            invContainer.innerHTML = '';
+            if (gameState.inventory.length === 0) {
+                invContainer.innerHTML = '<span class="text-xs text-gray-600 italic">No modules loaded</span>';
+            } else {
+                gameState.inventory.forEach(item => {
+                    invContainer.innerHTML += `
+                        <span class="text-xs bg-amber-500/10 border border-amber-500 text-amber-500 px-2.5 py-1 rounded-full font-bold shadow-sm">
+                            <i class="fa-solid fa-microchip text-[10px] mr-1"></i> ${item}
+                        </span>
+                    `;
+                });
+            }
+        }
+
+        function selectLocation(locId) {
+            playSound('click');
+            gameState.location = locId;
+            updateDashboard();
+        }
+
+        // HEAL PARTY MECHANIC
+        function healParty() {
+            playSound('heal');
+            gameState.party.forEach(p => p.hp = p.maxHp);
+            updateDashboard();
+            showCustomModal("fa-heart-pulse", "PARTY HEALED", "Your survival team has rested at the local camp and restored all health systems!");
+        }
+
+        // ENCOUNTERS BY REGION
+        const ENCOUNTER_TABLES = {
+            'route1': [
+                { name: "Wild Jackaroo", type: "Normal/Ground", hp: 35, maxHp: 35, atk: 40, def: 35, speed: 50, level: 4, sprite: "🦘" },
+                { name: "Wild Joltik", type: "Bug/Electric", hp: 30, maxHp: 30, atk: 35, def: 30, speed: 55, level: 5, sprite: "🕷️" }
+            ],
+            'route2': [
+                { name: "Wild Pawniard", type: "Dark/Steel", hp: 45, maxHp: 45, atk: 55, def: 50, speed: 45, level: 12, sprite: "🥷" },
+                { name: "Wild Magnemite", type: "Electric/Steel", hp: 40, maxHp: 40, atk: 50, def: 55, speed: 50, level: 11, sprite: "🧲" }
+            ],
+            'scrapyard': [
+                { name: "Wild Varoom", type: "Steel/Poison", hp: 45, maxHp: 45, atk: 50, def: 45, speed: 60, level: 15, sprite: "⚙️" },
+                { name: "Redline Grunt's Pawniard", type: "Dark/Steel", hp: 55, maxHp: 55, atk: 65, def: 60, speed: 50, level: 16, sprite: "🥷", isBoss: false }
+            ],
+            'route3': [
+                { name: "Wild Cramorant", type: "Water/Ground", hp: 60, maxHp: 60, atk: 50, def: 55, speed: 45, level: 20, sprite: "🦆" },
+                { name: "Wild Skarmite", type: "Steel/Flying", hp: 40, maxHp: 40, atk: 45, def: 60, speed: 40, level: 18, sprite: "🐣" }
+            ],
+            'route4': [
+                { name: "Wild Sandile", type: "Ground/Dark", hp: 55, maxHp: 55, atk: 65, def: 40, speed: 60, level: 28, sprite: "🐊" },
+                { name: "Wild Helioptile", type: "Dragon/Fire", hp: 50, maxHp: 50, atk: 60, def: 45, speed: 70, level: 29, sprite: "🦎" }
+            ],
+            'route5': [
+                { name: "Wild Toxtricity", type: "Electric/Poison", hp: 70, maxHp: 70, atk: 80, def: 60, speed: 75, level: 38, sprite: "🎸" },
+                { name: "Wild Scrafty", type: "Dark/Fighting", hp: 75, maxHp: 75, atk: 75, def: 85, speed: 55, level: 39, sprite: "🦎" }
+            ],
+            'route6': [
+                { name: "Wild Scovillain", type: "Grass/Fire", hp: 80, maxHp: 80, atk: 90, def: 65, speed: 75, level: 44, sprite: "🌶️" },
+                { name: "Wild Torkoal", type: "Fire", hp: 85, maxHp: 85, atk: 70, def: 110, speed: 20, level: 43, sprite: "🐢" }
+            ],
+            'basin': [
+                { name: "Wild Sableye", type: "Dark/Ghost", hp: 65, maxHp: 65, atk: 65, def: 65, speed: 40, level: 50, sprite: "👻" },
+                { name: "Wild Carbink", type: "Psychic/Ground", hp: 55, maxHp: 55, atk: 50, def: 100, speed: 30, level: 51, sprite: "💎" }
+            ],
+            'road8': [
+                { name: "Wild Gabite", type: "Dragon/Ground", hp: 90, maxHp: 90, atk: 90, def: 75, speed: 85, level: 56, sprite: "🦈" },
+                { name: "Wild Salamence", type: "Dragon/Flying", hp: 110, maxHp: 110, atk: 120, def: 85, speed: 100, level: 58, sprite: "🐉" }
+            ]
+        };
+
+        function triggerWildEncounter() {
+            if (!gameState.party.some(p => p.hp > 0)) {
+                showCustomModal("fa-triangle-exclamation", "CRITICAL WARNING", "Your entire party is unconscious! Please Rest & Heal at a camp before engaging.");
+                return;
+            }
+            if (gameState.party[0].hp <= 0) {
+                let nextIdx = gameState.party.findIndex(p => p.hp > 0);
+                let target = gameState.party[nextIdx];
+                gameState.party.splice(nextIdx, 1);
+                gameState.party.unshift(target);
+                updateDashboard();
+            }
+
+            const pool = ENCOUNTER_TABLES[gameState.location];
+            if (!pool) {
+                showCustomModal("fa-campground", "PEACEFUL LOCATION", "This town is protected. Head out on the routes to explore!");
+                return;
+            }
+
+            const wild = {...pool[Math.floor(Math.random() * pool.length)]};
+            // Scale stats marginally based on level variance
+            const variance = Math.floor(Math.random() * 3);
+            wild.level += variance;
+            wild.maxHp += variance * 4;
+            wild.hp = wild.maxHp;
+            wild.atk += variance * 2;
+            wild.def += variance * 2;
+            wild.spAtk = wild.atk + (Math.floor(Math.random() * 5) - 2); // Roughly parallel for wild encounters
+            wild.spDef = wild.def + (Math.floor(Math.random() * 5) - 2);
+
+            initBattle(wild, "WILD OUTBACK ENCOUNTER");
+        }
+
+        function triggerGymBattle() {
+            const loc = REGION_MAP.find(l => l.id === gameState.location);
+            if (!loc.gym) return;
+
+            if (!gameState.party.some(p => p.hp > 0)) {
+                showCustomModal("fa-triangle-exclamation", "CRITICAL WARNING", "Your entire party is unconscious! Please Rest & Heal at a camp before challenging the Gym.");
+                return;
+            }
+            if (gameState.party[0].hp <= 0) {
+                let nextIdx = gameState.party.findIndex(p => p.hp > 0);
+                let target = gameState.party[nextIdx];
+                gameState.party.splice(nextIdx, 1);
+                gameState.party.unshift(target);
+                updateDashboard();
+            }
+
+            let boss;
+            switch(loc.gym.leader) {
+                case "Silas": boss = { name: "Silas's Servine", type: "Grass", hp: 60, maxHp: 60, atk: 45, def: 40, speed: 50, level: 12, sprite: "🍃", isBoss: true }; break;
+                case "Mesa": boss = { name: "Mesa's Shieldon", type: "Rock/Steel", hp: 95, maxHp: 95, atk: 45, def: 120, speed: 30, level: 20, sprite: "🛡️", isBoss: true }; break;
+                case "Bindi": boss = { name: "Bindi's Cramorant", type: "Water/Ground", hp: 110, maxHp: 110, atk: 60, def: 65, speed: 60, level: 28, sprite: "🦆", isBoss: true }; break;
+                case "Darcy": boss = { name: "Darcy's Carbink", type: "Psychic/Ground", hp: 120, maxHp: 120, atk: 50, def: 130, speed: 40, level: 35, sprite: "💎", isBoss: true }; break;
+                case "Axel": boss = { name: "Axel's Toxtricity", type: "Electric/Poison", hp: 130, maxHp: 130, atk: 90, def: 70, speed: 85, level: 42, sprite: "🎸", isBoss: true }; break;
+                case "Sear": boss = { name: "Sear's Volcarona", type: "Bug/Fire", hp: 150, maxHp: 150, atk: 110, def: 85, speed: 100, level: 48, sprite: "🦋", isBoss: true }; break;
+                case "Kira": boss = { name: "Kira's Moppetgeist", type: "Dark/Ghost", hp: 160, maxHp: 160, atk: 80, def: 140, speed: 60, level: 52, sprite: "👻", isBoss: true }; break;
+                case "Garrick": boss = { name: "Garrick's Salamence", type: "Dragon/Flying", hp: 180, maxHp: 180, atk: 135, def: 90, speed: 110, level: 60, sprite: "🐉", isBoss: true }; break;
+                case "Jax":
+                    const mascotName = gameState.version === 'Ignition' ? 'Tectoneth' : 'Turborix';
+                    const mascotSprite = gameState.version === 'Ignition' ? '🦖' : '⚙️';
+                    boss = { name: `Jax's ${mascotName}`, type: "Dragon/Steel", hp: 250, maxHp: 250, atk: 140, def: 120, speed: 105, level: 70, sprite: mascotSprite, isBoss: true }; 
+                    break;
+            }
+            
+            // Add Special stats to bosses
+            boss.spAtk = boss.atk + 15;
+            boss.spDef = boss.def + 5;
+
+            initBattle(boss, `GYM CHALLENGE: vs ${loc.gym.leader}`);
+        }
+
+        // BATTLE ENGINE CODE
+        function initBattle(enemy, modeTitle) {
+            playSound('click');
+            gameState.activeBattle = {
+                enemy: enemy,
+                playerRef: gameState.party[0], // Store reference to original party member
+                player: JSON.parse(JSON.stringify(gameState.party[0])), // Create stat copy for battle modifiers
+                mode: modeTitle,
+                apexSurged: false,
+                enemyApexSurged: false
+            };
+
+            // Reset display screen elements
+            showScreen('screen-battle');
+            document.getElementById('battle-mode-title').innerText = modeTitle;
+            document.getElementById('enemy-name').innerText = enemy.name;
+            document.getElementById('enemy-level').innerText = `Lv. ${enemy.level}`;
+            document.getElementById('enemy-type').innerText = enemy.type;
+            document.getElementById('enemy-sprite').innerText = enemy.sprite || "🐲";
+
+            document.getElementById('player-name').innerText = gameState.activeBattle.player.name;
+            document.getElementById('player-level').innerText = `Lv. ${gameState.activeBattle.player.level}`;
+            document.getElementById('player-type').innerText = gameState.activeBattle.player.type;
+            document.getElementById('player-sprite').innerText = gameState.activeBattle.player.sprite || "🦎";
+
+            // Apply gear buffs
+            let gearTag = "";
+            if (gameState.inventory.includes("Sparkplug")) {
+                gameState.activeBattle.player.speed = Math.floor(gameState.activeBattle.player.speed * 1.20);
+                gearTag = "⚙️ Speed Tuned (+20%)";
+            }
+            if (gameState.inventory.includes("Plating")) {
+                gameState.activeBattle.player.def = Math.floor(gameState.activeBattle.player.def * 1.30);
+                gearTag += " 🛡️ Heavy Shield (+30%)";
+            }
+            document.getElementById('player-gear-tag').innerText = gearTag;
+
+            // Stats update
+            document.getElementById('btn-apex-surge').disabled = false;
+            document.getElementById('btn-apex-surge').className = "flex-1 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-black py-3 rounded-lg uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2";
+            document.getElementById('btn-catch').style.display = modeTitle.includes("GYM") ? "none" : "block";
+            document.getElementById('btn-catch-count').innerText = gameState.scrapBalls;
+            document.getElementById('btn-potion-count').innerText = gameState.potions || 0;
+
+            document.getElementById('enemy-card').classList.remove('apex-active');
+            document.getElementById('player-card').classList.remove('apex-active');
+
+            // Render log
+            document.getElementById('battle-log').innerHTML = `<p class="text-amber-500 font-bold">--- Combat Initiation ---</p>`;
+            appendBattleLog(`Battle began! Opposing ${enemy.name} challenges you!`);
+
+            renderMoves();
+            updateBattleHP();
+        }
+
+        // DYNAMIC LEVEL-UP MOVESET GENERATOR
+        function generateMoveset(p) {
+            const moves = [];
+            const types = p.type.split('/');
+            const primary = types[0];
+            const secondary = types[1] || primary;
+
+            // Slot 1: Basic Normal Move (Upgrades as they level)
+            if (p.level >= 25) moves.push({ name: "Body Slam", power: 65, type: "Normal", category: "Physical" });
+            else if (p.level >= 10) moves.push({ name: "Quick Attack", power: 45, type: "Normal", category: "Physical" });
+            else moves.push({ name: "Tackle", power: 35, type: "Normal", category: "Physical" });
+
+            // Slot 2: Primary STAB (Upgrades as they level)
+            if (p.level >= 35) {
+                if (primary === "Fire") moves.push({ name: "Flamethrower", power: 90, type: "Fire", category: "Special" });
+                else if (primary === "Water") moves.push({ name: "Surf", power: 90, type: "Water", category: "Special" });
+                else if (primary === "Grass") moves.push({ name: "Leaf Blade", power: 90, type: "Grass", category: "Physical" });
+                else moves.push({ name: `${primary} Blast`, power: 90, type: primary, category: "Special" });
+            } else if (p.level >= 16) {
+                if (primary === "Fire") moves.push({ name: "Flame Charge", power: 55, type: "Fire", category: "Physical" });
+                else if (primary === "Water") moves.push({ name: "Water Pulse", power: 60, type: "Water", category: "Special" });
+                else if (primary === "Grass") moves.push({ name: "Razor Leaf", power: 55, type: "Grass", category: "Physical" });
+                else moves.push({ name: `${primary} Strike`, power: 60, type: primary, category: "Physical" });
+            } else {
+                if (primary === "Fire") moves.push({ name: "Ember", power: 40, type: "Fire", category: "Special" });
+                else if (primary === "Water") moves.push({ name: "Water Gun", power: 40, type: "Water", category: "Special" });
+                else if (primary === "Grass") moves.push({ name: "Vine Whip", power: 40, type: "Grass", category: "Physical" });
+                else moves.push({ name: `Mini ${primary}`, power: 40, type: primary, category: "Special" });
+            }
+
+            // Slot 3: Secondary STAB or Coverage
+            if (p.level >= 12) {
+                if (p.level >= 32) {
+                    if (secondary === "Ground" || p.name.includes("Blaziken")) moves.push({ name: "Tectonic Bash", power: 90, type: "Ground", category: "Physical" });
+                    else if (secondary === "Poison") moves.push({ name: "Sludge Bomb", power: 90, type: "Poison", category: "Special" });
+                    else if (secondary === "Psychic") moves.push({ name: "Extrasensory", power: 80, type: "Psychic", category: "Special" });
+                    else if (secondary === "Steel") moves.push({ name: "Iron Head", power: 80, type: "Steel", category: "Physical" });
+                    else moves.push({ name: "Crunch", power: 80, type: "Dark", category: "Physical" });
+                } else {
+                    if (secondary === "Ground") moves.push({ name: "Mud Shot", power: 55, type: "Ground", category: "Special" });
+                    else if (secondary === "Poison") moves.push({ name: "Acid", power: 40, type: "Poison", category: "Special" });
+                    else moves.push({ name: "Bite", power: 60, type: "Dark", category: "Physical" });
+                }
+            } else {
+                moves.push({ name: "Sand Attack", power: 15, type: "Ground", category: "Special" }); // Damage for simplicity
+            }
+
+            // Slot 4: High Damage Finisher (Locked until mid-level)
+            if (p.level >= 22) {
+                moves.push({ name: "Double-Edge", power: 100, type: "Normal", category: "Physical" });
+            } else {
+                moves.push({ name: "Pound", power: 40, type: "Normal", category: "Physical" });
+            }
+
+            return moves;
+        }
+
+        function renderMoves() {
+            const movesGrid = document.getElementById('moves-grid');
+            movesGrid.innerHTML = '';
+
+            const p = gameState.activeBattle.player;
+            const moves = generateMoveset(p);
+            
+            // Helper to color moves
+            const getMoveColor = (t) => {
+                if(t.includes("Fire")) return "text-orange-400";
+                if(t.includes("Water")) return "text-cyan-400";
+                if(t.includes("Grass")) return "text-emerald-400";
+                if(t.includes("Poison")) return "text-purple-400";
+                if(t.includes("Ground")) return "text-yellow-600";
+                return "text-gray-100";
+            };
+
+            moves.forEach(m => {
+                const catIcon = m.category === 'Physical' ? '<i class="fa-solid fa-hand-fist text-[10px]"></i>' : '<i class="fa-solid fa-fire text-[10px]"></i>';
+                movesGrid.innerHTML += `
+                    <button onclick="executeTurn('${m.name}', ${m.power}, '${m.type}', '${m.category}')" class="bg-gray-950 hover:bg-gray-800 text-left p-3 rounded-lg border border-gray-800 hover:border-gray-600 transition-all flex flex-col justify-between">
+                        <span class="font-bold ${getMoveColor(m.type)}">${m.name}</span>
+                        <div class="flex justify-between items-center w-full mt-1">
+                            <span class="text-[10px] bg-gray-900 text-amber-500 px-1.5 py-0.5 rounded font-bold flex items-center gap-1">${catIcon} ${m.type}</span>
+                            <span class="text-xs text-gray-400">Pwr: ${m.power}</span>
+                        </div>
+                    </button>
+                `;
+            });
+        }
+
+        function updateBattleHP() {
+            const p = gameState.activeBattle.player;
+            const e = gameState.activeBattle.enemy;
+
+            const getHpColor = (pct) => {
+                if (pct > 50) return 'from-emerald-500 to-green-400';
+                if (pct > 20) return 'from-yellow-500 to-amber-400';
+                return 'from-red-600 to-red-500';
+            };
+
+            // Player HP & EXP
+            const pPct = Math.max(0, (p.hp / p.maxHp) * 100);
+            const pBar = document.getElementById('player-hp-bar');
+            pBar.style.width = `${pPct}%`;
+            pBar.className = `h-full transition-all duration-300 w-full bg-gradient-to-r ${getHpColor(pPct)}`;
+            document.getElementById('player-hp-text').innerText = `${p.hp} / ${p.maxHp} HP`;
+            
+            // Experience indicators
+            const pXpPct = Math.min(100, p.xp || 0);
+            document.getElementById('player-xp-bar').style.width = `${pXpPct}%`;
+            document.getElementById('player-xp-text').innerText = `EXP: ${p.xp || 0}/100`;
+
+            // Enemy HP
+            const ePct = Math.max(0, (e.hp / e.maxHp) * 100);
+            const eBar = document.getElementById('enemy-hp-bar');
+            eBar.style.width = `${ePct}%`;
+            eBar.className = `h-full transition-all duration-300 w-full bg-gradient-to-r ${getHpColor(ePct)}`;
+            document.getElementById('enemy-hp-text').innerText = `${e.hp} / ${e.maxHp} HP`;
+        }
+
+        function appendBattleLog(msg, color = "text-gray-300") {
+            const log = document.getElementById('battle-log');
+            log.innerHTML += `<p class="${color}">${msg}</p>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // FLOATING DAMAGE VISUALIZER
+        function spawnDamageNumber(amount, isPlayerSpot) {
+            const container = document.getElementById('battle-dmg-container');
+            const el = document.createElement('div');
+            el.className = `absolute text-2xl font-black font-mono damage-number ${isPlayerSpot ? 'text-red-500' : 'text-yellow-400'}`;
+            el.style.left = isPlayerSpot ? '30%' : '70%';
+            el.style.top = '40%';
+            el.innerText = `-${amount}`;
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 800);
+        }
+
+        // TYPE EFFECTIVENESS CHART
+        const TYPE_CHART = {
+            "Normal": { weakTo: ["Fighting"], immuneTo: ["Ghost"] },
+            "Fire": { weakTo: ["Water", "Ground", "Rock"], resists: ["Fire", "Grass", "Bug", "Steel", "Fairy"] },
+            "Water": { weakTo: ["Grass", "Electric"], resists: ["Water", "Fire", "Steel", "Ice"] },
+            "Grass": { weakTo: ["Fire", "Ice", "Poison", "Flying", "Bug"], resists: ["Grass", "Water", "Electric", "Ground"] },
+            "Electric": { weakTo: ["Ground"], resists: ["Electric", "Flying", "Steel"] },
+            "Ice": { weakTo: ["Fire", "Fighting", "Rock", "Steel"], resists: ["Ice"] },
+            "Fighting": { weakTo: ["Flying", "Psychic", "Fairy"], resists: ["Bug", "Rock", "Dark"] },
+            "Poison": { weakTo: ["Ground", "Psychic"], resists: ["Grass", "Fighting", "Poison", "Bug", "Fairy"] },
+            "Ground": { weakTo: ["Water", "Grass", "Ice"], resists: ["Poison", "Rock"], immuneTo: ["Electric"] },
+            "Flying": { weakTo: ["Electric", "Ice", "Rock"], resists: ["Grass", "Fighting", "Bug"], immuneTo: ["Ground"] },
+            "Psychic": { weakTo: ["Bug", "Ghost", "Dark"], resists: ["Fighting", "Psychic"] },
+            "Bug": { weakTo: ["Fire", "Flying", "Rock"], resists: ["Grass", "Fighting", "Ground"] },
+            "Rock": { weakTo: ["Water", "Grass", "Fighting", "Ground", "Steel"], resists: ["Normal", "Fire", "Poison", "Flying"] },
+            "Ghost": { weakTo: ["Ghost", "Dark"], resists: ["Poison", "Bug"], immuneTo: ["Normal", "Fighting"] },
+            "Dragon": { weakTo: ["Ice", "Dragon", "Fairy"], resists: ["Fire", "Water", "Grass", "Electric"] },
+            "Dark": { weakTo: ["Fighting", "Bug", "Fairy"], resists: ["Ghost", "Dark"], immuneTo: ["Psychic"] },
+            "Steel": { weakTo: ["Fire", "Fighting", "Ground"], resists: ["Normal", "Grass", "Ice", "Flying", "Psychic", "Bug", "Rock", "Dragon", "Steel", "Fairy"], immuneTo: ["Poison"] },
+            "Fairy": { weakTo: ["Poison", "Steel"], resists: ["Fighting", "Bug", "Dark"], immuneTo: ["Dragon"] }
+        };
+
+        function getEffectiveness(moveType, targetTypeStr) {
+            if (!moveType || !targetTypeStr) return 1;
+            let multiplier = 1;
+            const targetTypes = targetTypeStr.split('/');
+            
+            targetTypes.forEach(tType => {
+                const typeData = TYPE_CHART[tType.trim()];
+                if (typeData) {
+                    if (typeData.weakTo && typeData.weakTo.includes(moveType)) multiplier *= 2;
+                    if (typeData.resists && typeData.resists.includes(moveType)) multiplier *= 0.5;
+                    if (typeData.immuneTo && typeData.immuneTo.includes(moveType)) multiplier *= 0;
+                }
+            });
+            return multiplier;
+        }
+
+        // BATTLE FLOW (SPEED SORTED)
+        function executeTurn(moveName, movePower, moveType, moveCategory) {
+            const p = gameState.activeBattle.player;
+            const e = gameState.activeBattle.enemy;
+
+            if (p.speed >= e.speed) {
+                // Player attacks first
+                playerAttack(moveName, movePower, moveType, moveCategory);
+                if (e.hp > 0) {
+                    setTimeout(() => {
+                        enemyAttack();
+                        checkPostTurn();
+                    }, 600);
+                } else {
+                    checkPostTurn();
+                }
+            } else {
+                // Enemy attacks first
+                enemyAttack();
+                if (p.hp > 0) {
+                    setTimeout(() => {
+                        playerAttack(moveName, movePower, moveType, moveCategory);
+                        checkPostTurn();
+                    }, 600);
+                } else {
+                    checkPostTurn();
+                }
+            }
+        }
+
+        function playerAttack(moveName, movePower, moveType, moveCategory) {
+            const p = gameState.activeBattle.player;
+            const e = gameState.activeBattle.enemy;
+
+            let isPhysical = moveCategory === 'Physical';
+            let activeAtk = isPhysical ? p.atk : p.spAtk;
+            let activeDef = isPhysical ? e.def : e.spDef;
+
+            // Apply STAB (Same Type Attack Bonus)
+            let stab = p.type.includes(moveType) ? 1.5 : 1;
+            let multiplier = getEffectiveness(moveType, e.type);
+            
+            let damage = Math.floor((activeAtk / activeDef) * movePower * 0.5 * multiplier * stab);
+            
+            // Critical variance
+            const isCrit = Math.random() < 0.15;
+            if (isCrit && multiplier > 0) {
+                damage = Math.floor(damage * 1.5);
+                playSound('crit');
+                appendBattleLog(`🎯 CRITICAL HIT!`, "text-yellow-400 font-bold text-xs");
+            } else if (multiplier > 0) {
+                playSound('hit');
+            }
+            
+            if (multiplier > 0) damage = Math.max(6, damage);
+            else damage = 0;
+
+            e.hp = Math.max(0, e.hp - damage);
+            appendBattleLog(`${p.name} used <strong class="text-cyan-400">${moveName}</strong>! Dealt ${damage} dmg.`, "text-cyan-200");
+            
+            if (multiplier > 1) appendBattleLog("It's super effective!", "text-yellow-400 font-bold");
+            else if (multiplier < 1 && multiplier > 0) appendBattleLog("It's not very effective...", "text-gray-500 font-bold");
+            else if (multiplier === 0) appendBattleLog("It had no effect!", "text-gray-500 font-bold");
+
+            spawnDamageNumber(damage, false);
+
+            // Shaker visual
+            const enemySprite = document.getElementById('enemy-sprite');
+            enemySprite.classList.add('shake-animation');
+            setTimeout(() => enemySprite.classList.remove('shake-animation'), 300);
+
+            // Boss threshold trigger
+            if (e.isBoss && e.hp <= (e.maxHp / 2) && !gameState.activeBattle.enemyApexSurged) {
+                triggerEnemyApexSurge();
+            }
+
+            updateBattleHP();
+        }
+
+        function enemyAttack() {
+            const p = gameState.activeBattle.player;
+            const e = gameState.activeBattle.enemy;
+
+            const eMoves = [
+                { name: "Nitro Ram", type: "Normal", category: "Physical", power: 50 },
+                { name: "Asphalt Impact", type: "Ground", category: "Physical", power: 60 },
+                { name: "Volcanic Blast", type: "Fire", category: "Special", power: 65 },
+                { name: "Apex Shatter", type: "Dragon", category: "Physical", power: 80 }
+            ];
+            const selectedMove = eMoves[Math.floor(Math.random() * eMoves.length)];
+            
+            let isPhysical = selectedMove.category === 'Physical';
+            let activeAtk = isPhysical ? e.atk : e.spAtk;
+            let activeDef = isPhysical ? p.def : p.spDef;
+
+            // Apply STAB
+            let stab = e.type.includes(selectedMove.type) ? 1.5 : 1;
+            let multiplier = getEffectiveness(selectedMove.type, p.type);
+            
+            let damage = Math.floor((activeAtk / activeDef) * selectedMove.power * 0.45 * multiplier * stab);
+            
+            if (multiplier > 0) damage = Math.max(5, damage);
+            else damage = 0;
+
+            p.hp = Math.max(0, p.hp - damage);
+            gameState.activeBattle.playerRef.hp = p.hp; // Sync HP damage back to the actual party
+            
+            if (multiplier > 0) playSound('hit');
+            
+            appendBattleLog(`Enemy ${e.name} fired <strong class="text-red-400">${selectedMove.name}</strong>! Dealt ${damage} damage.`, "text-red-200");
+
+            if (multiplier > 1) appendBattleLog("It's super effective!", "text-yellow-400 font-bold");
+            else if (multiplier < 1 && multiplier > 0) appendBattleLog("It's not very effective...", "text-gray-500 font-bold");
+            else if (multiplier === 0) appendBattleLog("It had no effect!", "text-gray-500 font-bold");
+
+            spawnDamageNumber(damage, true);
+
+            const playerSprite = document.getElementById('player-sprite');
+            playerSprite.classList.add('shake-animation');
+            setTimeout(() => playerSprite.classList.remove('shake-animation'), 300);
+
+            updateBattleHP();
+        }
+
+        // SURGE CORE MECHANICS
+        function triggerApexSurge() {
+            if (gameState.activeBattle.apexSurged) return;
+
+            playSound('apex');
+            const p = gameState.activeBattle.player;
+            gameState.activeBattle.apexSurged = true;
+
+            p.atk += 100;
+            p.def += 100;
+            p.speed += 100;
+
+            document.getElementById('player-card').classList.add('apex-active');
+            appendBattleLog(`🔥 APEX SURGE UNLEASHED! ${p.name}'s performance values max out (+100 stats)!`, "text-amber-400 font-extrabold tracking-widest");
+
+            const btn = document.getElementById('btn-apex-surge');
+            btn.disabled = true;
+            btn.className = "flex-1 bg-gray-800 text-gray-500 cursor-not-allowed py-3 rounded-lg uppercase tracking-wider font-bold";
+
+            renderMoves();
+        }
+
+        function triggerEnemyApexSurge() {
+            playSound('apex');
+            const e = gameState.activeBattle.enemy;
+            gameState.activeBattle.enemyApexSurged = true;
+
+            e.atk += 100;
+            e.def += 100;
+            e.speed += 100;
+
+            document.getElementById('enemy-card').classList.add('apex-active');
+            appendBattleLog(`⚠️ EMERGENCY WARNING: Opposing ${e.name} initiates Apex Redline Overdrive!`, "text-orange-500 font-extrabold tracking-widest");
+        }
+
+        // BATTLE ITEMS (POTIONS)
+        function usePotion() {
+            if (!gameState.potions || gameState.potions <= 0) {
+                showCustomModal("fa-flask", "OUT OF POTIONS", "You have no Super Potions left! Buy more at Mesa's Scrapyard Garage.");
+                return;
+            }
+            const p = gameState.activeBattle.player;
+            if (p.hp >= p.maxHp) {
+                appendBattleLog(`${p.name} is already at full health!`, "text-yellow-400 font-bold");
+                return;
+            }
+            
+            gameState.potions--;
+            document.getElementById('btn-potion-count').innerText = gameState.potions;
+            updateDashboard();
+
+            playSound('heal');
+            const healAmount = 50; // Super Potion equivalent
+            p.hp = Math.min(p.maxHp, p.hp + healAmount);
+            gameState.activeBattle.playerRef.hp = p.hp;
+            
+            appendBattleLog(`Used a Super Potion! ${p.name} recovered health.`, "text-pink-400 font-bold");
+            updateBattleHP();
+
+            // The enemy gets a free turn since the player used an item
+            setTimeout(() => {
+                enemyAttack();
+                checkPostTurn();
+            }, 800);
+        }
+
+        // CATCH LAUNCHER
+        function attemptCatch() {
+            if (gameState.scrapBalls <= 0) {
+                showCustomModal("fa-triangle-exclamation", "OUT OF MATRICES", "You have run out of Capture Matrices! Buy more at Mesa's Scrapyard Garage.");
+                return;
+            }
+
+            const e = gameState.activeBattle.enemy;
+            
+            if (gameState.party.length >= 6) {
+                appendBattleLog("Survival deck filled! (6 max). Cannot capture more.", "text-red-400");
+                return;
+            }
+
+            // Consume Matrix
+            gameState.scrapBalls--;
+            document.getElementById('btn-catch-count').innerText = gameState.scrapBalls;
+            updateDashboard();
+
+            const hpRatio = e.hp / e.maxHp;
+            const catchChance = 1.0 - hpRatio + 0.15;
+
+            playSound('click');
+            appendBattleLog(`Threw a Capture Matrix! (${gameState.scrapBalls} left)...`, "text-yellow-400");
+            
+            setTimeout(() => {
+                if (Math.random() <= catchChance) {
+                    playSound('level_up');
+                    appendBattleLog(`CAPTURE COMPLETED! Welcome ${e.name} to the squad.`, "text-emerald-400 font-bold");
+                    
+                    e.hp = e.maxHp;
+                    // Reset boss modifiers
+                    e.isBoss = false;
+                    gameState.party.push(e);
+                    
+                    setTimeout(() => {
+                        endBattle(true);
+                    }, 1200);
+                } else {
+                    playSound('hit');
+                    appendBattleLog(`The hostile broke out of the Matrix grid!`, "text-red-400");
+                    enemyAttack();
+                    checkPostTurn();
+                }
+            }, 1000);
+        }
+
+        function checkPostTurn() {
+            const p = gameState.activeBattle.player;
+            const e = gameState.activeBattle.enemy;
+
+            if (e.hp <= 0) {
+                appendBattleLog(`VICTORY! Enemy ${e.name} shutdown.`, "text-emerald-400 font-black");
+                setTimeout(() => endBattle(true), 1200);
+            } else if (p.hp <= 0) {
+                gameState.activeBattle.playerRef.hp = 0; // Ensure original is wiped
+                
+                // Find next conscious pokemon
+                let nextIndex = gameState.party.findIndex(poke => poke.hp > 0);
+                
+                if (nextIndex !== -1) {
+                    appendBattleLog(`CRITICAL: ${p.name} shut down! Deploying next combatant...`, "text-red-500 font-bold");
+                    
+                    setTimeout(() => {
+                        // Swap the array order
+                        let target = gameState.party[nextIndex];
+                        gameState.party.splice(nextIndex, 1);
+                        gameState.party.unshift(target);
+                        
+                        // Setup new active battler
+                        gameState.activeBattle.playerRef = gameState.party[0];
+                        gameState.activeBattle.player = JSON.parse(JSON.stringify(gameState.party[0]));
+                        
+                        // Re-apply items for the new battler
+                        if (gameState.inventory.includes("Sparkplug")) gameState.activeBattle.player.speed = Math.floor(gameState.activeBattle.player.speed * 1.20);
+                        if (gameState.inventory.includes("Plating")) gameState.activeBattle.player.def = Math.floor(gameState.activeBattle.player.def * 1.30);
+                        
+                        // Reset Apex status for this slot
+                        gameState.activeBattle.apexSurged = false;
+                        document.getElementById('btn-apex-surge').disabled = false;
+                        document.getElementById('btn-apex-surge').className = "flex-1 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-black py-3 rounded-lg uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2";
+                        document.getElementById('player-card').classList.remove('apex-active');
+
+                        // Update UI
+                        document.getElementById('player-name').innerText = gameState.activeBattle.player.name;
+                        document.getElementById('player-level').innerText = `Lv. ${gameState.activeBattle.player.level}`;
+                        document.getElementById('player-type').innerText = gameState.activeBattle.player.type;
+                        document.getElementById('player-sprite').innerText = gameState.activeBattle.player.sprite || "🦎";
+                        
+                        appendBattleLog(`Sent out ${gameState.activeBattle.player.name}!`, "text-emerald-400 font-bold");
+                        renderMoves();
+                        updateBattleHP();
+                    }, 800);
+                } else {
+                    appendBattleLog(`DEFEAT! Your entire survival team has been wiped out.`, "text-red-500 font-black");
+                    setTimeout(() => endBattle(false), 1200);
+                }
+            }
+        }
+
+        // PROCESS BATTLE RESOLUTION (xp + levels + evolutions)
+        function endBattle(won) {
+            const battle = gameState.activeBattle;
+            
+            if (won) {
+                let scrapReward = Math.floor(Math.random() * 25) + 20;
+                if (battle.enemy.isBoss) scrapReward += 80;
+                gameState.scrap += scrapReward;
+
+                // Base EXP Calculation (Significantly increased)
+                let baseXP = Math.floor(Math.random() * 40) + 45;
+                if (battle.enemy.isBoss) baseXP += 100;
+                
+                let expMessages = [];
+
+                // EXP Share System
+                gameState.party.forEach((poke, idx) => {
+                    if (poke.hp > 0) {
+                        let xpGain = (idx === 0) ? baseXP : Math.floor(baseXP * 0.5); // Lead gets 100%, others get 50%
+                        poke.xp = (poke.xp || 0) + xpGain;
+                        
+                        let levelsGained = 0;
+                        while (poke.xp >= 100) {
+                            poke.xp -= 100;
+                            poke.level += 1;
+                            poke.maxHp += 5;
+                            poke.hp += 5;
+                            poke.atk += 3;
+                            poke.def += 3;
+                            poke.spAtk += 3;
+                            poke.spDef += 3;
+                            poke.speed += 3;
+                            levelsGained++;
+                        }
+
+                        if (levelsGained > 0) {
+                            let evolvedName = checkEvolution(poke);
+                            if (evolvedName) {
+                                expMessages.push(`⭐ ${poke.name} evolved into ${evolvedName} at Lv.${poke.level}!`);
+                            } else {
+                                expMessages.push(`⬆️ ${poke.name} grew to Lv.${poke.level}!`);
+                            }
+                        }
+                    }
+                });
+
+                if (expMessages.length > 0) {
+                    playSound('level_up');
+                    showCustomModal("fa-arrow-up-right-dots", "TEAM UPGRADED!", expMessages.join("\n"));
+                } else {
+                    showCustomModal("fa-circle-check", "VICTORY SECURED", `Earned +${scrapReward} Scrap & party gained EXP.`);
+                }
+
+                // If Gym Boss defeated
+                if (battle.enemy.isBoss) {
+                    const leader = REGION_MAP.find(l => l.id === gameState.location).gym.leader;
+                    let badgeName = "";
+                    switch(leader) {
+                        case "Silas": badgeName = "Bramble Badge"; break;
+                        case "Mesa": badgeName = "Rivet Badge"; break;
+                        case "Bindi": badgeName = "Billabong Badge"; break;
+                        case "Darcy": badgeName = "Mirage Badge"; break;
+                        case "Axel": badgeName = "Voltage Badge"; break;
+                        case "Sear": badgeName = "Ember Badge"; break;
+                        case "Kira": badgeName = "Phantom Badge"; break;
+                        case "Garrick": badgeName = "Apex Badge"; break;
+                        case "Jax": badgeName = "Champion Ribbon"; break;
+                    }
+
+                    if (badgeName && !gameState.badges.includes(badgeName)) {
+                        gameState.badges.push(badgeName);
+                    }
+                }
+            } else {
+                showCustomModal("fa-triangle-exclamation", "DEFEATED", "Your entire party suffered critical damage. Safe teleport protocols returned you to Frond Village safely to heal.");
+                gameState.party.forEach(p => p.hp = p.maxHp);
+            }
+
+            gameState.activeBattle = null;
+            showScreen('screen-dashboard');
+            updateDashboard();
+        }
+
+        function checkEvolution(poke) {
+            let evolvedName = "";
+            let originalName = poke.name.replace("Aurauan ", "").replace("Wild ", ""); 
+            
+            if (originalName === "Snivy" && poke.level >= 16) { poke.name = "Servine"; evolvedName = "Servine"; }
+            else if (originalName === "Servine" && poke.level >= 32) { poke.name = "Aurauan Serperior"; poke.type = "Grass/Poison"; poke.sprite = "🐍"; evolvedName = "Aurauan Serperior"; }
+            else if (originalName === "Torchic" && poke.level >= 16) { poke.name = "Combusken"; evolvedName = "Combusken"; }
+            else if (originalName === "Combusken" && poke.level >= 32) { poke.name = "Aurauan Blaziken"; poke.type = "Fire/Ground"; poke.sprite = "🦅"; evolvedName = "Aurauan Blaziken"; }
+            else if (originalName === "Froakie" && poke.level >= 16) { poke.name = "Frogadier"; evolvedName = "Frogadier"; }
+            else if (originalName === "Frogadier" && poke.level >= 32) { poke.name = "Aurauan Greninja"; poke.type = "Water/Psychic"; poke.sprite = "🥷"; evolvedName = "Aurauan Greninja"; }
+            else if (originalName === "Jackaroo" && poke.level >= 20) { poke.name = "Jumpingoo"; evolvedName = "Jumpingoo"; }
+            else if (originalName === "Skarmite" && poke.level >= 25) { poke.name = "Skarmory"; poke.sprite = "🦅"; evolvedName = "Skarmory"; }
+            else if (originalName === "Sizzlip" && poke.level >= 28) { poke.name = "Torkoal"; poke.sprite = "🐢"; evolvedName = "Torkoal"; }
+            
+            return evolvedName !== "" ? evolvedName : null;
+        }
+
+        function runFromBattle() {
+            playSound('click');
+            showCustomModal("fa-person-running", "ESCAPE", "Triggered nitro rockets to blast clear of the hazard zone.");
+            gameState.activeBattle = null;
+            showScreen('screen-dashboard');
+            updateDashboard();
+        }
+
+        // STORE LOGIC
+        function buyPotions(cost) {
+            playSound('click');
+            if (gameState.scrap < cost) {
+                showCustomModal("fa-triangle-exclamation", "INSUFFICIENT FUNDS", "Find and secure more scrap parts along routes to pay for this purchase.");
+                return;
+            }
+
+            gameState.scrap -= cost;
+            gameState.potions = (gameState.potions || 0) + 3;
+            playSound('level_up');
+            showCustomModal("fa-flask", "POTIONS ACQUIRED", `You bought 3x Super Potions! You now have ${gameState.potions} in your inventory.`);
+            updateDashboard();
+        }
+
+        function buyBalls(cost) {
+            playSound('click');
+            if (gameState.scrap < cost) {
+                showCustomModal("fa-triangle-exclamation", "INSUFFICIENT FUNDS", "Find and secure more scrap parts along routes to pay for this purchase.");
+                return;
+            }
+
+            gameState.scrap -= cost;
+            gameState.scrapBalls += 3;
+            playSound('level_up');
+            showCustomModal("fa-box", "MATRICES ACQUIRED", `You bought 3x Capture Matrices! You now have ${gameState.scrapBalls} in your inventory.`);
+            updateDashboard();
+        }
+
+        function buyItem(itemName, cost) {
+            playSound('click');
+            if (gameState.scrap < cost) {
+                showCustomModal("fa-triangle-exclamation", "INSUFFICIENT FUNDS", "Find and secure more scrap parts along routes to pay for this module.");
+                return;
+            }
+
+            if (gameState.inventory.includes(itemName)) {
+                showCustomModal("fa-triangle-exclamation", "ALREADY OWNED", "Only one active slot is certified for this specific model configuration.");
+                return;
+            }
+
+            gameState.scrap -= cost;
+            gameState.inventory.push(itemName);
+            playSound('level_up');
+            showCustomModal("fa-box", "PLUGIN INSTALLED", `Mounted the ${itemName} into your bike bay! Stats are adjusted in all future battles.`);
+            updateDashboard();
+        }
+
+        function buyUpgrade(upgradeName, cost) {
+            playSound('click');
+            if (gameState.scrap < cost) {
+                showCustomModal("fa-triangle-exclamation", "INSUFFICIENT FUNDS", "Collect scrap from wild matches or Gym Leaders to afford this bike upgrade.");
+                return;
+            }
+
+            if (gameState.upgrades.includes(upgradeName)) {
+                return;
+            }
+
+            gameState.scrap -= cost;
+            gameState.upgrades.push(upgradeName);
+            playSound('level_up');
+
+            const btn = document.getElementById(`btn-upgrade-${upgradeName.toLowerCase()}`);
+            btn.disabled = true;
+            btn.innerText = "Installed";
+            btn.className = "bg-gray-800 text-gray-500 text-xs px-3 py-1.5 rounded font-bold cursor-not-allowed";
+
+            showCustomModal("fa-motorcycle", "BIKE OVERCLOCKED", `You modified your bike frame with the ${upgradeName}! New regions of the highway are now accessible.`);
+            updateDashboard();
+        }
+
+        // POKEDEX RENDER & FILTER ENGINE
+        function renderPokedex() {
+            const list = document.getElementById('pokedex-list');
+            list.innerHTML = '';
+
+            POKEDEX_DATABASE.forEach(poke => {
+                const isApex = poke.apex ? `<span class="text-xs text-amber-400 font-bold"><i class="fa-solid fa-crown text-[10px]"></i> Apex Mod: ${poke.apex}</span>` : '<span class="text-xs text-gray-600">Apex Locked</span>';
+                
+                list.innerHTML += `
+                    <div class="bg-gray-950 p-4 border border-gray-800 rounded-lg flex flex-col justify-between">
+                        <div class="flex justify-between items-start">
+                            <span class="text-xs font-mono text-gray-500">Slot #${String(poke.id).padStart(3, '0')}</span>
+                            <span class="text-xs bg-gray-900 px-2 py-0.5 rounded text-cyan-400 font-bold border border-gray-800">${poke.type}</span>
+                        </div>
+                        <h4 class="header-font text-lg font-bold text-gray-100 mt-2">${poke.name}</h4>
+                        <p class="text-xs text-gray-400 mt-1">Next: ${poke.evolution}</p>
+                        <div class="border-t border-gray-900 mt-3 pt-2 flex justify-between items-center">
+                            ${isApex}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function filterPokedex() {
+            const term = document.getElementById('dex-search').value.toLowerCase();
+            const cards = document.getElementById('pokedex-list').children;
+
+            POKEDEX_DATABASE.forEach((poke, idx) => {
+                const match = poke.name.toLowerCase().includes(term) || poke.type.toLowerCase().includes(term);
+                if (match) {
+                    cards[idx].classList.remove('hidden');
+                } else {
+                    cards[idx].classList.add('hidden');
+                }
+            });
+        }
+
+        // CUSTOM NOTIFICATIONS UI (Safe for browser environments)
+        function showCustomModal(iconName, title, message) {
+            document.getElementById('modal-icon').innerHTML = `<i class="fa-solid ${iconName}"></i>`;
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            playSound('click');
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        // SAVE & LOAD MECHANICS
+        function saveGame() {
+            playSound('click');
+            if (gameState.party.length === 0) {
+                showCustomModal("fa-triangle-exclamation", "CANNOT SAVE", "You must choose your starter Pokémon before saving.");
+                return;
+            }
+            localStorage.setItem('aurausSave', JSON.stringify(gameState));
+            playSound('level_up');
+            showCustomModal("fa-floppy-disk", "GAME SAVED", "Your progress, scrap, and party have been securely saved to the local memory core.");
+        }
+
+        function loadGame() {
+            playSound('click');
+            const savedData = localStorage.getItem('aurausSave');
+            if (savedData) {
+                gameState = JSON.parse(savedData);
+                
+                // Restore HUD and correct screen
+                document.getElementById('hud-version').innerText = gameState.version;
+                if (gameState.version === 'Ignition') {
+                    document.getElementById('hud-version').className = "font-bold text-orange-400";
+                } else {
+                    document.getElementById('hud-version').className = "font-bold text-cyan-400";
+                }
+                
+                document.getElementById('hud-stats').classList.remove('hidden');
+                showScreen('screen-dashboard');
+                updateDashboard();
+                
+                playSound('level_up');
+                showCustomModal("fa-folder-open", "GAME LOADED", "Welcome back to the Outback! Your progress has been restored.");
+            } else {
+                showCustomModal("fa-triangle-exclamation", "NO SAVE FOUND", "No previous survival data found in the memory core.");
+            }
+        }
+    </script>
+</body>
+</html>
