@@ -36,6 +36,8 @@ function saveLevels() {
 
 loadLevels();
 
+app.get('/', (req, res) => res.redirect('/trig-run.html'));
+
 // 1. UPLOAD ROUTE
 app.post('/api/levels/upload', (req, res) => {
     const { name, objects, uploaderId } = req.body;
