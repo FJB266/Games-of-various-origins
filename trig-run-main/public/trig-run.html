@@ -31,6 +31,65 @@
     <button class="tbtn sec" onclick="openBrowseLevels()">⬇ BROWSE LEVELS</button>
     <button class="tbtn sec" onclick="openEditorFromTitle()">✎ LEVEL EDITOR</button>
   </div>
+  <div id="title-user-bar">
+    <span id="title-user-display"></span>
+    <button class="ubtn" id="title-auth-btn" onclick="openAuthModal()">LOGIN</button>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div id="auth-modal" class="modal" style="display:none;">
+  <div class="modal-content auth-modal-content">
+    <div id="auth-tabs">
+      <button class="auth-tab active" id="auth-tab-login" onclick="switchAuthTab('login')">LOGIN</button>
+      <button class="auth-tab" id="auth-tab-register" onclick="switchAuthTab('register')">REGISTER</button>
+    </div>
+    <div id="auth-form-login" class="auth-form">
+      <input type="text" id="auth-login-user" class="auth-input" placeholder="Username" maxlength="20" autocomplete="username">
+      <input type="password" id="auth-login-pass" class="auth-input" placeholder="Password" maxlength="100" autocomplete="current-password">
+      <div id="auth-login-error" class="auth-error"></div>
+      <button class="tbtn" onclick="doLogin()">LOGIN</button>
+    </div>
+    <div id="auth-form-register" class="auth-form" style="display:none;">
+      <input type="text" id="auth-reg-user" class="auth-input" placeholder="Username (3-20 chars)" maxlength="20" autocomplete="username">
+      <input type="password" id="auth-reg-pass" class="auth-input" placeholder="Password (min 4 chars)" maxlength="100" autocomplete="new-password">
+      <input type="password" id="auth-reg-pass2" class="auth-input" placeholder="Confirm password" maxlength="100" autocomplete="new-password">
+      <div id="auth-reg-error" class="auth-error"></div>
+      <button class="tbtn" onclick="doRegister()">REGISTER</button>
+    </div>
+    <button class="modal-btn" onclick="closeAuthModal()" style="margin-top:8px;">CLOSE</button>
+  </div>
+</div>
+
+<!-- PROFILE SCREEN -->
+<div id="profile-screen" class="screen">
+  <canvas id="profile-stars"></canvas>
+  <div id="profile-content">
+    <h2>PROFILE</h2>
+    <div id="profile-card">
+      <div id="profile-avatar"></div>
+      <div id="profile-info">
+        <div id="profile-username"></div>
+        <div id="profile-display"></div>
+        <div id="profile-joined"></div>
+        <div id="profile-stats"></div>
+      </div>
+    </div>
+    <div id="profile-edit" style="display:none;">
+      <label class="profile-label">Display Name</label>
+      <input type="text" id="profile-display-input" class="auth-input" maxlength="30">
+      <button class="tbtn" onclick="saveProfile()" style="min-width:160px;">SAVE</button>
+      <div id="profile-msg" class="auth-error"></div>
+    </div>
+    <div id="profile-my-levels">
+      <h3>MY LEVELS</h3>
+      <div id="profile-levels-grid"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="tbtn sec" onclick="closeProfile()">← BACK</button>
+      <button class="tbtn sec red" id="profile-logout-btn" onclick="doLogout()" style="display:none;">LOGOUT</button>
+    </div>
+  </div>
 </div>
 
 <!-- LEVEL SELECT -->
@@ -163,6 +222,6 @@
 <canvas id="gameCanvas"></canvas>
 <div id="instructions"><b>SPACE/CLICK</b> jump / thrust &nbsp;|&nbsp; <b>R</b> restart &nbsp;|&nbsp; <b>ESC</b> pause</div>
 
-<script src="game.js?v=3"></script>
+<script src="game.js?v=4"></script>
 </body>
 </html>

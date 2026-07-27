@@ -28,6 +28,191 @@ let selectedIcon = 0, playerColor1 = '#00eaff', playerColor2 = '#003355';
 let customLevelObjects = [];
 let lastTime = null;
 
+// ─── AUTH STATE ──────────────────────────────────────────────
+let authToken = localStorage.getItem('trun_auth_token') || '';
+let currentUser = null;
+
+function authFetch(url, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({}, opts.headers || {});
+  if (authToken) opts.headers['Authorization'] = 'Bearer ' + authToken;
+  if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  return fetch(url, opts);
+}
+
+function updateTitleUserBar() {
+  const display = document.getElementById('title-user-display');
+  const btn = document.getElementById('title-auth-btn');
+  if (!display || !btn) return;
+  if (currentUser) {
+    display.textContent = currentUser.displayName || currentUser.username;
+    display.onclick = openProfile;
+    btn.textContent = 'PROFILE';
+    btn.onclick = openProfile;
+  } else {
+    display.textContent = '';
+    display.onclick = null;
+    btn.textContent = 'LOGIN';
+    btn.onclick = openAuthModal;
+  }
+}
+
+function restoreSession() {
+  if (!authToken) return;
+  fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + authToken } })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success && d.user) {
+        currentUser = d.user;
+      } else {
+        authToken = '';
+        localStorage.removeItem('trun_auth_token');
+      }
+      updateTitleUserBar();
+    })
+    .catch(() => {
+      authToken = '';
+      localStorage.removeItem('trun_auth_token');
+      updateTitleUserBar();
+    });
+}
+
+// ─── AUTH MODAL ──────────────────────────────────────────────
+function openAuthModal() {
+  document.getElementById('auth-modal').style.display = 'flex';
+  document.getElementById('auth-login-error').textContent = '';
+  document.getElementById('auth-reg-error').textContent = '';
+}
+function closeAuthModal() {
+  document.getElementById('auth-modal').style.display = 'none';
+}
+function switchAuthTab(tab) {
+  document.getElementById('auth-tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('auth-tab-register').classList.toggle('active', tab === 'register');
+  document.getElementById('auth-form-login').style.display = tab === 'login' ? 'flex' : 'none';
+  document.getElementById('auth-form-register').style.display = tab === 'register' ? 'flex' : 'none';
+  document.getElementById('auth-login-error').textContent = '';
+  document.getElementById('auth-reg-error').textContent = '';
+}
+function doLogin() {
+  const username = document.getElementById('auth-login-user').value.trim();
+  const password = document.getElementById('auth-login-pass').value;
+  const errEl = document.getElementById('auth-login-error');
+  if (!username || !password) { errEl.textContent = 'Fill in all fields'; return; }
+  errEl.textContent = '';
+  fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) {
+        authToken = d.token;
+        currentUser = d.user;
+        localStorage.setItem('trun_auth_token', authToken);
+        updateTitleUserBar();
+        closeAuthModal();
+      } else {
+        errEl.textContent = d.error || 'Login failed';
+      }
+    })
+    .catch(e => { errEl.textContent = 'Connection error'; });
+}
+function doRegister() {
+  const username = document.getElementById('auth-reg-user').value.trim();
+  const password = document.getElementById('auth-reg-pass').value;
+  const password2 = document.getElementById('auth-reg-pass2').value;
+  const errEl = document.getElementById('auth-reg-error');
+  if (!username || !password) { errEl.textContent = 'Fill in all fields'; return; }
+  if (password !== password2) { errEl.textContent = 'Passwords do not match'; return; }
+  errEl.textContent = '';
+  fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) {
+        authToken = d.token;
+        currentUser = d.user;
+        localStorage.setItem('trun_auth_token', authToken);
+        updateTitleUserBar();
+        closeAuthModal();
+      } else {
+        errEl.textContent = d.error || 'Registration failed';
+      }
+    })
+    .catch(e => { errEl.textContent = 'Connection error'; });
+}
+function doLogout() {
+  authFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+  authToken = '';
+  currentUser = null;
+  localStorage.removeItem('trun_auth_token');
+  updateTitleUserBar();
+  closeProfile();
+}
+
+// ─── PROFILE ─────────────────────────────────────────────────
+function openProfile() {
+  if (!currentUser) { openAuthModal(); return; }
+  hideAll();
+  document.getElementById('profile-screen').classList.add('show');
+  document.getElementById('profile-username').textContent = currentUser.username;
+  document.getElementById('profile-display').textContent = 'Display: ' + (currentUser.displayName || currentUser.username);
+  document.getElementById('profile-avatar').textContent = (currentUser.displayName || currentUser.username)[0].toUpperCase();
+  const date = new Date(currentUser.createdAt).toLocaleDateString();
+  document.getElementById('profile-joined').textContent = 'Joined: ' + date;
+  document.getElementById('profile-stats').textContent = 'Levels uploaded: ' + (currentUser.levelsUploaded || 0);
+  document.getElementById('profile-display-input').value = currentUser.displayName || currentUser.username;
+  document.getElementById('profile-edit').style.display = 'block';
+  document.getElementById('profile-msg').textContent = '';
+  document.getElementById('profile-logout-btn').style.display = 'inline-block';
+  fetchProfileLevels();
+}
+function closeProfile() {
+  hideAll();
+  document.getElementById('title-screen').classList.add('show');
+}
+function saveProfile() {
+  const displayName = document.getElementById('profile-display-input').value.trim();
+  const msgEl = document.getElementById('profile-msg');
+  if (!displayName) { msgEl.textContent = 'Display name required'; return; }
+  authFetch('/api/auth/profile', { method: 'PUT', body: { displayName } })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) {
+        currentUser = d.user;
+        msgEl.textContent = 'Saved!';
+        msgEl.style.color = '#0f8';
+        document.getElementById('profile-display').textContent = 'Display: ' + currentUser.displayName;
+        document.getElementById('profile-avatar').textContent = currentUser.displayName[0].toUpperCase();
+        updateTitleUserBar();
+      } else {
+        msgEl.textContent = d.error || 'Failed';
+        msgEl.style.color = '#f44';
+      }
+    })
+    .catch(() => { msgEl.textContent = 'Connection error'; });
+}
+function fetchProfileLevels() {
+  const grid = document.getElementById('profile-levels-grid');
+  grid.innerHTML = '';
+  authFetch('/api/levels/mine')
+    .then(r => r.json())
+    .then(d => {
+      if (d.levels.length === 0) {
+        grid.innerHTML = '<p style="color:#445;font-size:11px;letter-spacing:1px;">No levels uploaded yet.</p>';
+        return;
+      }
+      d.levels.forEach(l => {
+        const card = document.createElement('div');
+        card.className = 'profile-lv-card';
+        const date = new Date(l.uploadedAt).toLocaleDateString();
+        card.innerHTML = `<div class="profile-lv-name">${l.name}</div><div class="profile-lv-meta">${l.downloads} downloads · ${date}</div>`;
+        grid.appendChild(card);
+      });
+    })
+    .catch(() => { grid.innerHTML = '<p style="color:#f44;font-size:11px;">Failed to load levels</p>'; });
+}
+
 function resetPlayer(){
   player = {x:150, y:GROUND-GRID, vy:0, size:GRID, onGround:false, angle:0, dead:false};
   gameMode = 'cube';
@@ -1019,6 +1204,7 @@ function getOrCreateUploaderId(){
 
 function uploadLevel(){
   if(edObjects.length===0){ alert('Cannot upload empty level'); return; }
+  if(!currentUser){ openAuthModal(); return; }
   const name=prompt('Level name:',currentEditorLevelName||'My Level');
   if(!name) return;
   const trimmed=name.trim();
@@ -1035,16 +1221,13 @@ function uploadLevel(){
   button.disabled=true;
   button.textContent='⬆ UPLOADING...';
   
-  const uid=getOrCreateUploaderId();
-  
   // 2. We pass the lightweight compressed text string as the network payload
   const payload={
     name: trimmed,
-    objects: compressedDataString, 
-    uploaderId: uid
+    objects: compressedDataString
   };
   
-  fetch('/api/levels/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+  authFetch('/api/levels/upload',{method:'POST',body:payload})
     .then(r=>r.json())
     .then(d=>{
       if(d.success){
@@ -1090,9 +1273,10 @@ function fetchBrowseLevels(){
         const card=document.createElement('div');
         card.className='bl-card';
         const date=new Date(l.uploadedAt).toLocaleDateString();
+        const displayName = l.uploaderDisplayName || l.uploaderId || 'Anonymous';
         card.innerHTML=`
           <div class="bl-card-name">${l.name}</div>
-          <div class="bl-card-uploader">${l.uploaderId}</div>
+          <div class="bl-card-uploader">by ${displayName}</div>
           <div class="bl-card-date">${date}</div>
           <div class="bl-card-downloads">📥 ${l.downloads}</div>
         `;
@@ -1119,12 +1303,11 @@ function previewLevel(levelId){
       loading.style.display='none';
       document.getElementById('preview-level-name').textContent=level.name;
       const date=new Date(level.uploadedAt).toLocaleDateString();
-      document.getElementById('preview-level-info').textContent=`By ${level.uploaderId} • ${date} • ${level.downloads} downloads`;
+      document.getElementById('preview-level-info').textContent=`By ${level.uploaderDisplayName || level.uploaderId || 'Anonymous'} • ${date} • ${level.downloads} downloads`;
       
       // Check if user can delete
-      const uid=getOrCreateUploaderId();
       const delBtn=document.getElementById('preview-delete-btn');
-      delBtn.style.display=uid===level.uploaderId?'block':'none';
+      delBtn.style.display=(currentUser && currentUser.username===level.uploaderId)?'block':'none';
       
       // Draw preview
       drawLevelPreview(parseCompressedLevel(level.objects));
@@ -1239,14 +1422,14 @@ function playBrowsedLevel(){
 
 function deleteCurrentBrowsedLevel(){
   if(!browseCurrentLevelId) return;
+  if(!currentUser){ openAuthModal(); return; }
   if(!confirm('Delete this level? This cannot be undone.')) return;
   
   const delBtn=document.getElementById('preview-delete-btn');
   delBtn.disabled=true;
   delBtn.textContent='DELETING...';
   
-  const uid=getOrCreateUploaderId();
-  fetch(`/api/levels/${browseCurrentLevelId}`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({uploaderId:uid})})
+  authFetch(`/api/levels/${browseCurrentLevelId}`,{method:'DELETE'})
     .then(r=>r.json())
     .then(d=>{
       if(d.success){
@@ -1268,12 +1451,13 @@ function deleteCurrentBrowsedLevel(){
 const tsCanvas=document.getElementById('title-stars'), tsCtx=tsCanvas.getContext('2d');
 const lsCanvas=document.getElementById('ls-stars'),   lsCtx=lsCanvas.getContext('2d');
 const blCanvas=document.getElementById('bl-stars'),   blCtx=blCanvas.getContext('2d');
+const prCanvas=document.getElementById('profile-stars'), prCtx=prCanvas?prCanvas.getContext('2d'):null;
 const STARS=Array.from({length:100},()=>({
   x:Math.random()*2000, y:Math.random()*800,
   vx:(Math.random()-.5)*.3, vy:(Math.random()-.5)*.1,
   r:Math.random()*2+.5
 }));
-function resizeStarCanvases(){ tsCanvas.width=lsCanvas.width=blCanvas.width=window.innerWidth; tsCanvas.height=lsCanvas.height=blCanvas.height=window.innerHeight; }
+function resizeStarCanvases(){ tsCanvas.width=lsCanvas.width=blCanvas.width=window.innerWidth; tsCanvas.height=lsCanvas.height=blCanvas.height=window.innerHeight; if(prCanvas){ prCanvas.width=window.innerWidth; prCanvas.height=window.innerHeight; } }
 resizeStarCanvases();
 window.addEventListener('resize', resizeStarCanvases);
 
@@ -1301,6 +1485,11 @@ function animateStars(){
     STARS.forEach(s=>{ blCtx.globalAlpha=.35+.35*Math.sin(t+s.y*.01); blCtx.fillStyle='#fff'; blCtx.beginPath(); blCtx.arc(s.x,s.y,s.r,0,Math.PI*2); blCtx.fill(); });
     blCtx.globalAlpha=1;
   }
+  if(prCtx && document.getElementById('profile-screen').classList.contains('show')){
+    prCtx.clearRect(0,0,prCanvas.width,prCanvas.height);
+    STARS.forEach(s=>{ prCtx.globalAlpha=.35+.35*Math.sin(t+s.x*.01); prCtx.fillStyle='#fff'; prCtx.beginPath(); prCtx.arc(s.x,s.y,s.r,0,Math.PI*2); prCtx.fill(); });
+    prCtx.globalAlpha=1;
+  }
   requestAnimationFrame(animateStars);
 }
 animateStars();
@@ -1319,4 +1508,6 @@ function loop(ts){
 loadGame();
 generateBuiltinLevel();
 resetPlayer();
+restoreSession();
+updateTitleUserBar();
 requestAnimationFrame(loop);

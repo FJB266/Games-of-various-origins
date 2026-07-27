@@ -1,6 +1,15 @@
 {
   "levels": [
     {
+      "id": "lvl_2",
+      "name": "Auth Test Level",
+      "uploaderId": "TestUser",
+      "uploaderDisplayName": "TestUser",
+      "objects": "c3Bpa2UsMTcwLDQwOCwzNCwzNCw=",
+      "downloads": 0,
+      "uploadedAt": "2026-07-27T22:20:04.730Z"
+    },
+    {
       "id": "lvl_1",
       "name": "My Level",
       "uploaderId": "user_5k70nzwt798t",
@@ -9,5 +18,5 @@
       "uploadedAt": "2026-07-27T09:21:57.851Z"
     }
   ],
-  "levelIdCounter": 2
+  "levelIdCounter": 3
 }

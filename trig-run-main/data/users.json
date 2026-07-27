@@ -1,0 +1,13 @@
+{
+  "users": [
+    {
+      "username": "TestUser",
+      "displayName": "TestUser",
+      "salt": "ee7cefda997e964b17be974ab355efc1",
+      "hash": "bd97c409d83063ae87d21ffb8822821a3c234b288148ad32ce6f71e87f01f13303e3b5e5a0cc911d3c8c1dbb21c879c0a9c0909da4ed81c5192cb44415ad7553",
+      "sessionToken": "979a1535e3a89fceb86e9461bcd7572687729a33255af61eb439b110bd03bcb9",
+      "createdAt": "2026-07-27T22:20:04.586Z",
+      "levelsUploaded": 1
+    }
+  ]
+}
