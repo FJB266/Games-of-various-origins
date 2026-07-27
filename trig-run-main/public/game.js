@@ -999,7 +999,6 @@ function closeEditor(){
 function openHomePage(){
   document.getElementById('homepage-btn').innerHTML = '<a href="index.html">';
 }
-
 // ─── UPLOAD & BROWSE LEVELS ──────────────────────────────────
 let uploaderId='', browseCurrentLevelId='';
 
@@ -1026,12 +1025,24 @@ function uploadLevel(){
   if(trimmed.length===0) return;
   if(trimmed.length>100){ alert('Level name too long (max 100 chars)'); return; }
   
+  // 1. Compression: encode all properties so rotation, portals, and deco colors survive the round-trip
+  const rawString = edObjects.map(obj => {
+    return [obj.type, obj.x, obj.y, obj.w||30, obj.h||30, obj.rotation||'', obj.toMode||'', obj.color||''].join(',');
+  }).join(';');
+  const compressedDataString = btoa(rawString);
+
   const button=document.querySelector('.etbtn.blue');
   button.disabled=true;
   button.textContent='⬆ UPLOADING...';
   
   const uid=getOrCreateUploaderId();
-  const payload={name:trimmed,objects:edObjects,uploaderId:uid};
+  
+  // 2. We pass the lightweight compressed text string as the network payload
+  const payload={
+    name: trimmed,
+    objects: compressedDataString, 
+    uploaderId: uid
+  };
   
   fetch('/api/levels/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
     .then(r=>r.json())
@@ -1166,12 +1177,38 @@ function closeLevelPreview(){
   document.getElementById('levelpreview-modal').style.display='none';
 }
 
+// Helper parser function to reconstruct your blocks
+function parseCompressedLevel(dataString) {
+  if (!dataString || typeof dataString !== 'string') return dataString;
+  try {
+    const raw = atob(dataString);
+    return raw.split(';').map(str => {
+      const parts = str.split(',');
+      const obj = {
+        type: parts[0],
+        x: parseInt(parts[1]),
+        y: parseInt(parts[2]),
+        w: parseInt(parts[3] || 30),
+        h: parseInt(parts[4] || 30)
+      };
+      if (parts[5]) obj.rotation = parseInt(parts[5]);
+      if (parts[6]) obj.toMode = parts[6];
+      if (parts[7]) obj.color = parts[7];
+      return obj;
+    });
+  } catch(e) {
+    console.error("Parsing failed, structure might be corrupt:", e);
+    return [];
+  }
+}
+
 function loadBrowsedLevel(){
   if(!browseCurrentLevelId) return;
   fetch(`/api/levels/${browseCurrentLevelId}`)
     .then(r=>r.json())
     .then(level=>{
-      edObjects=JSON.parse(JSON.stringify(level.objects));
+      // Convert the server string back into an object array for editing
+      edObjects = parseCompressedLevel(level.objects);
       currentEditorLevelName=level.name;
       updateEdCount(); drawEditor();
       closeLevelPreview();
@@ -1185,7 +1222,8 @@ function playBrowsedLevel(){
   fetch(`/api/levels/${browseCurrentLevelId}`)
     .then(r=>r.json())
     .then(level=>{
-      customLevelObjects=level.objects;
+      // Convert the server string back into an object array for gameplay
+      customLevelObjects = parseCompressedLevel(level.objects);
       levelObjects=JSON.parse(JSON.stringify(customLevelObjects));
       if(!levelObjects.find(o=>o.type==='end')){
         const maxX=levelObjects.length?Math.max(...levelObjects.map(o=>o.x)):500;

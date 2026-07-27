@@ -1,3 +1,13 @@
 {
-  "levels": []
+  "levels": [
+    {
+      "id": "lvl_1",
+      "name": "My Level",
+      "uploaderId": "user_5k70nzwt798t",
+      "objects": "c3Bpa2UsMTcwLDQwOCwzNCwzNCwsLDtzcGlrZSwyMDQsNDA4LDM0LDM0LCwsO3NwaWtlLDIzOCw0MDgsMzQsMzQsLCw7c3Bpa2UsMjcyLDQwOCwzNCwzNCwsLDtzcGlrZSwzMDYsNDA4LDM0LDM0LCwsO3NwaWtlLDM0MCw0MDgsMzQsMzQsLCw7c3Bpa2UsMzc0LDQwOCwzNCwzNCwsLDtzcGlrZSw0MDgsNDA4LDM0LDM0LCwsO3NwaWtlLDQ0Miw0MDgsMzQsMzQsLCw7ZW5kLDg0MiwzMzIsMTAsMjAwLCws",
+      "downloads": 0,
+      "uploadedAt": "2026-07-27T09:21:57.851Z"
+    }
+  ],
+  "levelIdCounter": 2
 }
