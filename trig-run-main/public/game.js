@@ -1127,7 +1127,7 @@ function previewLevel(levelId){
       delBtn.style.display=uid===level.uploaderId?'block':'none';
       
       // Draw preview
-      drawLevelPreview(level.objects);
+      drawLevelPreview(parseCompressedLevel(level.objects));
       modal.style.display='flex';
     })
     .catch(e=>{
