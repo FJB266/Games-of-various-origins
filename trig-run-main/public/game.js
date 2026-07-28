@@ -1255,13 +1255,172 @@ function closeBrowseLevels(){
   document.getElementById('title-screen').classList.add('show');
 }
 
+// ─── BROWSE SORT ─────────────────────────────────────────────
+let currentBrowseSort='recent';
+
+function setBrowseSort(sort,btn){
+  currentBrowseSort=sort;
+  document.querySelectorAll('.bl-sort-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  fetchBrowseLevels();
+}
+
+// ─── SEARCH ──────────────────────────────────────────────────
+let currentSearchTab='levels';
+let searchDebounce=null;
+
+function openSearchScreen(type){
+  hideAll();
+  document.getElementById('search-screen').classList.add('show');
+  currentSearchTab=type||'levels';
+  document.getElementById('search-input').value='';
+  document.getElementById('search-levels-grid').innerHTML='';
+  document.getElementById('search-users-grid').innerHTML='';
+  document.getElementById('search-empty').style.display='none';
+  document.getElementById('search-loading').style.display='none';
+  document.getElementById('search-title').textContent=currentSearchTab==='levels'?'SEARCH LEVELS':'SEARCH USERS';
+  document.querySelectorAll('.search-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.search-tab')[currentSearchTab==='levels'?0:1].classList.add('active');
+  document.getElementById('search-levels-grid').style.display=currentSearchTab==='levels'?'grid':'none';
+  document.getElementById('search-users-grid').style.display=currentSearchTab==='users'?'grid':'none';
+  setTimeout(()=>document.getElementById('search-input').focus(),100);
+}
+
+function closeSearchScreen(){
+  hideAll();
+  document.getElementById('browselevels-screen').classList.add('show');
+}
+
+function switchSearchTab(tab,btn){
+  currentSearchTab=tab;
+  document.querySelectorAll('.search-tab').forEach(t=>t.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.getElementById('search-levels-grid').style.display=tab==='levels'?'grid':'none';
+  document.getElementById('search-users-grid').style.display=tab==='users'?'grid':'none';
+  document.getElementById('search-title').textContent=tab==='levels'?'SEARCH LEVELS':'SEARCH USERS';
+  document.getElementById('search-empty').style.display='none';
+  doSearch();
+}
+
+function doSearch(){
+  const q=document.getElementById('search-input').value.trim();
+  const loading=document.getElementById('search-loading');
+  const empty=document.getElementById('search-empty');
+  const lvlGrid=document.getElementById('search-levels-grid');
+  const usrGrid=document.getElementById('search-users-grid');
+
+  if(!q){ lvlGrid.innerHTML=''; usrGrid.innerHTML=''; empty.style.display='none'; return; }
+
+  loading.style.display='block';
+  empty.style.display='none';
+
+  if(currentSearchTab==='levels'){
+    fetch(`/api/levels/search?q=${encodeURIComponent(q)}`)
+      .then(r=>r.json())
+      .then(d=>{
+        loading.style.display='none';
+        lvlGrid.innerHTML='';
+        if(d.levels.length===0){
+          empty.textContent='No levels found';
+          empty.style.display='block';
+          return;
+        }
+        d.levels.forEach(l=>{
+          const card=document.createElement('div');
+          card.className='bl-card';
+          const date=new Date(l.uploadedAt).toLocaleDateString();
+          const displayName=l.uploaderDisplayName||l.uploaderId||'Anonymous';
+          card.innerHTML=`
+            <div class="bl-card-name">${l.name}</div>
+            <div class="bl-card-uploader">by ${displayName}</div>
+            <div class="bl-card-date">${date}</div>
+            <div class="bl-card-downloads">📥 ${l.downloads} ⭐ ${l.likes||0}</div>
+          `;
+          card.addEventListener('click',()=>previewLevel(l.id));
+          lvlGrid.appendChild(card);
+        });
+      })
+      .catch(()=>{
+        loading.style.display='none';
+        empty.textContent='Search failed';
+        empty.style.display='block';
+      });
+  } else {
+    fetch(`/api/users/search?q=${encodeURIComponent(q)}`)
+      .then(r=>r.json())
+      .then(d=>{
+        loading.style.display='none';
+        usrGrid.innerHTML='';
+        if(d.users.length===0){
+          empty.textContent='No users found';
+          empty.style.display='block';
+          return;
+        }
+        d.users.forEach(u=>{
+          const card=document.createElement('div');
+          card.className='search-user-card';
+          const initial=(u.displayName||u.username).charAt(0).toUpperCase();
+          card.innerHTML=`
+            <div class="search-user-avatar">${initial}</div>
+            <div class="search-user-name">${u.username}</div>
+            <div class="search-user-display">${u.displayName||u.username}</div>
+            <div class="search-user-levels">📦 ${u.levelsUploaded} levels</div>
+          `;
+          card.addEventListener('click',()=>{
+            closeSearchScreen();
+            viewUserProfile(u.username);
+          });
+          usrGrid.appendChild(card);
+        });
+      })
+      .catch(()=>{
+        loading.style.display='none';
+        empty.textContent='Search failed';
+        empty.style.display='block';
+      });
+  }
+}
+
+function viewUserProfile(username){
+  fetch(`/api/users/${username}`)
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.error){ alert(d.error); return; }
+      hideAll();
+      document.getElementById('profile-screen').classList.add('show');
+      document.getElementById('profile-avatar').textContent=(d.displayName||d.username).charAt(0).toUpperCase();
+      document.getElementById('profile-username').textContent=d.username;
+      document.getElementById('profile-display').textContent='Display: '+(d.displayName||d.username);
+      document.getElementById('profile-joined').textContent='Joined: '+new Date(d.createdAt).toLocaleDateString();
+      document.getElementById('profile-stats').textContent='Levels uploaded: '+(d.levelsUploaded||0);
+      document.getElementById('profile-edit').style.display='none';
+      document.getElementById('profile-logout-btn').style.display=(currentUser && currentUser.username===d.username)?'inline-block':'none';
+      const grid=document.getElementById('profile-levels-grid');
+      grid.innerHTML='';
+      if(d.levels.length===0){
+        grid.innerHTML='<p style="grid-column:1/-1;color:#445;text-align:center;font-size:12px;">No levels uploaded yet</p>';
+      } else {
+        d.levels.forEach(l=>{
+          const card=document.createElement('div');
+          card.className='profile-lv-card';
+          card.innerHTML=`
+            <div class="profile-lv-name">${l.name}</div>
+            <div class="profile-lv-meta">📥 ${l.downloads} • ${new Date(l.uploadedAt).toLocaleDateString()}</div>
+          `;
+          grid.appendChild(card);
+        });
+      }
+    })
+    .catch(e=>alert('Failed to load profile: '+e.message));
+}
+
 function fetchBrowseLevels(){
   const grid=document.getElementById('bl-grid');
   const loading=document.getElementById('bl-loading');
   grid.innerHTML='';
   loading.style.display='block';
   
-  fetch('/api/levels/recent?limit=20')
+  fetch(`/api/levels/recent?sort=${currentBrowseSort}`)
     .then(r=>r.json())
     .then(d=>{
       loading.style.display='none';
@@ -1278,7 +1437,7 @@ function fetchBrowseLevels(){
           <div class="bl-card-name">${l.name}</div>
           <div class="bl-card-uploader">by ${displayName}</div>
           <div class="bl-card-date">${date}</div>
-          <div class="bl-card-downloads">📥 ${l.downloads}</div>
+          <div class="bl-card-downloads">📥 ${l.downloads} ⭐ ${l.likes||0}</div>
         `;
         card.addEventListener('click',()=>previewLevel(l.id));
         grid.appendChild(card);
@@ -1452,12 +1611,13 @@ const tsCanvas=document.getElementById('title-stars'), tsCtx=tsCanvas.getContext
 const lsCanvas=document.getElementById('ls-stars'),   lsCtx=lsCanvas.getContext('2d');
 const blCanvas=document.getElementById('bl-stars'),   blCtx=blCanvas.getContext('2d');
 const prCanvas=document.getElementById('profile-stars'), prCtx=prCanvas?prCanvas.getContext('2d'):null;
+const srCanvas=document.getElementById('search-stars'), srCtx=srCanvas?srCanvas.getContext('2d'):null;
 const STARS=Array.from({length:100},()=>({
   x:Math.random()*2000, y:Math.random()*800,
   vx:(Math.random()-.5)*.3, vy:(Math.random()-.5)*.1,
   r:Math.random()*2+.5
 }));
-function resizeStarCanvases(){ tsCanvas.width=lsCanvas.width=blCanvas.width=window.innerWidth; tsCanvas.height=lsCanvas.height=blCanvas.height=window.innerHeight; if(prCanvas){ prCanvas.width=window.innerWidth; prCanvas.height=window.innerHeight; } }
+function resizeStarCanvases(){ tsCanvas.width=lsCanvas.width=blCanvas.width=window.innerWidth; tsCanvas.height=lsCanvas.height=blCanvas.height=window.innerHeight; if(prCanvas){ prCanvas.width=window.innerWidth; prCanvas.height=window.innerHeight; } if(srCanvas){ srCanvas.width=window.innerWidth; srCanvas.height=window.innerHeight; } }
 resizeStarCanvases();
 window.addEventListener('resize', resizeStarCanvases);
 
@@ -1490,6 +1650,11 @@ function animateStars(){
     STARS.forEach(s=>{ prCtx.globalAlpha=.35+.35*Math.sin(t+s.x*.01); prCtx.fillStyle='#fff'; prCtx.beginPath(); prCtx.arc(s.x,s.y,s.r,0,Math.PI*2); prCtx.fill(); });
     prCtx.globalAlpha=1;
   }
+  if(srCtx && document.getElementById('search-screen').classList.contains('show')){
+    srCtx.clearRect(0,0,srCanvas.width,srCanvas.height);
+    STARS.forEach(s=>{ srCtx.globalAlpha=.35+.35*Math.sin(t+s.y*.01); srCtx.fillStyle='#fff'; srCtx.beginPath(); srCtx.arc(s.x,s.y,s.r,0,Math.PI*2); srCtx.fill(); });
+    srCtx.globalAlpha=1;
+  }
   requestAnimationFrame(animateStars);
 }
 animateStars();
@@ -1510,4 +1675,8 @@ generateBuiltinLevel();
 resetPlayer();
 restoreSession();
 updateTitleUserBar();
+document.getElementById('search-input').addEventListener('input',()=>{
+  clearTimeout(searchDebounce);
+  searchDebounce=setTimeout(doSearch,300);
+});
 requestAnimationFrame(loop);

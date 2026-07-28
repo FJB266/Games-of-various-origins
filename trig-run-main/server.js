@@ -85,6 +85,7 @@ function findUserByToken(token) {
 
 loadLevels();
 loadUsers();
+onlineLevels.forEach(l => { if (l.likes === undefined) l.likes = 0; });
 
 app.get('/', (req, res) => res.redirect('/trig-run.html'));
 
@@ -203,6 +204,7 @@ app.post('/api/levels/upload', requireAuth, (req, res) => {
         uploaderDisplayName: req.user.displayName,
         objects: objects,
         downloads: 0,
+        likes: 0,
         uploadedAt: new Date().toISOString()
     };
 
@@ -213,21 +215,35 @@ app.post('/api/levels/upload', requireAuth, (req, res) => {
     res.status(201).json({ success: true, id: newLevel.id });
 });
 
-// 2. BROWSE RECENT
+// 2. BROWSE (with sort support)
 app.get('/api/levels/recent', (req, res) => {
-    res.json({ levels: onlineLevels });
+    const sort = req.query.sort || 'recent';
+    let sorted = [...onlineLevels];
+    if (sort === 'downloads') sorted.sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
+    else if (sort === 'likes') sorted.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+    else sorted.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+    res.json({ levels: sorted });
 });
 
-// 3. FETCH SINGLE LEVEL
+// 3. SEARCH LEVELS (must be before :id route)
+app.get('/api/levels/search', (req, res) => {
+    const q = (req.query.q || '').trim().toLowerCase();
+    if (!q) return res.json({ levels: [] });
+    const results = onlineLevels.filter(l => l.name.toLowerCase().includes(q));
+    res.json({ levels: results });
+});
+
+// 4. FETCH SINGLE LEVEL
 app.get('/api/levels/:id', (req, res) => {
     const level = onlineLevels.find(lvl => lvl.id === req.params.id);
     if (!level) return res.status(404).json({ error: 'Level not found' });
 
     level.downloads++;
+    saveLevels();
     res.json(level);
 });
 
-// 4. DELETE (requires auth)
+// 5. DELETE (requires auth)
 app.delete('/api/levels/:id', requireAuth, (req, res) => {
     const index = onlineLevels.findIndex(lvl => lvl.id === req.params.id);
 
@@ -241,7 +257,22 @@ app.delete('/api/levels/:id', requireAuth, (req, res) => {
     res.json({ success: true });
 });
 
-// 5. USER PROFILE (public)
+// 6. SEARCH USERS (must be before :username route)
+app.get('/api/users/search', (req, res) => {
+    const q = (req.query.q || '').trim().toLowerCase();
+    if (!q) return res.json({ users: [] });
+    const results = users.filter(u =>
+        u.username.toLowerCase().includes(q) || (u.displayName || '').toLowerCase().includes(q)
+    ).map(u => ({
+        username: u.username,
+        displayName: u.displayName,
+        createdAt: u.createdAt,
+        levelsUploaded: u.levelsUploaded || 0
+    }));
+    res.json({ users: results });
+});
+
+// 7. USER PROFILE (public)
 app.get('/api/users/:username', (req, res) => {
     const user = findUserByUsername(req.params.username);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -256,7 +287,7 @@ app.get('/api/users/:username', (req, res) => {
     });
 });
 
-// 6. MY LEVELS (requires auth)
+// 8. MY LEVELS (requires auth)
 app.get('/api/levels/mine', requireAuth, (req, res) => {
     const myLevels = onlineLevels.filter(l => l.uploaderId === req.user.username);
     res.json({ levels: myLevels });

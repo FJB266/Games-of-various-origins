@@ -109,9 +109,38 @@
   <div id="bl-content">
     <h2>BROWSE LEVELS</h2>
     <p>COMMUNITY CREATIONS</p>
+    <div id="bl-toolbar">
+      <div id="bl-sort-group">
+        <button class="bl-sort-btn active" onclick="setBrowseSort('recent',this)">🕐 Recent</button>
+        <button class="bl-sort-btn" onclick="setBrowseSort('downloads',this)">📥 Most Downloaded</button>
+        <button class="bl-sort-btn" onclick="setBrowseSort('likes',this)">⭐ Most Liked</button>
+      </div>
+      <div id="bl-search-group">
+        <button class="bl-search-btn" onclick="openSearchScreen('levels')">🔍 Search Levels</button>
+        <button class="bl-search-btn" onclick="openSearchScreen('users')">👤 Search Users</button>
+      </div>
+    </div>
     <div id="bl-grid"></div>
     <div id="bl-loading" style="display:none;text-align:center;padding:20px;">Loading levels...</div>
     <button class="tbtn sec bl-back" onclick="closeBrowseLevels()">← BACK</button>
+  </div>
+</div>
+
+<!-- SEARCH SCREEN -->
+<div id="search-screen" class="screen">
+  <canvas id="search-stars"></canvas>
+  <div id="search-content">
+    <button class="tbtn sec search-back" onclick="closeSearchScreen()">← BACK</button>
+    <h2 id="search-title">SEARCH LEVELS</h2>
+    <input type="text" id="search-input" class="auth-input" placeholder="Type to search..." autocomplete="off" />
+    <div id="search-tabs">
+      <button class="search-tab active" onclick="switchSearchTab('levels',this)">🔍 Levels</button>
+      <button class="search-tab" onclick="switchSearchTab('users',this)">👤 Users</button>
+    </div>
+    <div id="search-levels-grid" class="bl-grid"></div>
+    <div id="search-users-grid" style="display:none;"></div>
+    <div id="search-loading" style="display:none;text-align:center;padding:20px;">Searching...</div>
+    <p id="search-empty" style="display:none;"></p>
   </div>
 </div>
 
@@ -222,6 +251,6 @@
 <canvas id="gameCanvas"></canvas>
 <div id="instructions"><b>SPACE/CLICK</b> jump / thrust &nbsp;|&nbsp; <b>R</b> restart &nbsp;|&nbsp; <b>ESC</b> pause</div>
 
-<script src="game.js?v=4"></script>
+<script src="game.js?v=5"></script>
 </body>
 </html>
