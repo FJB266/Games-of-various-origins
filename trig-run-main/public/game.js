@@ -1052,10 +1052,15 @@ function edPlaceAt(px,py){
   if(edTool==='erase'){ edEraseAt(px,py); return; }
   const def=ED_DEFS[edTool]; if(!def) return;
   const obj=Object.assign(def(),{x:edSnapX(px),y:edSnapY(py)});
-  if(edTool==='spike'||edTool==='portal-ship'||edTool==='portal-cube') obj.rotation=edRotation;
+  if(edTool==='spike'||edTool==='halfspike'||edTool==='portal-ship'||edTool==='portal-cube') obj.rotation=edRotation;
   if(edTool==='slab')    obj.y=Math.min(Math.floor(py/GRID)*GRID+(GRID/2),GROUND-(GRID/2));
   if(edTool==='jumppad') obj.y=GROUND-10;
   if(edTool==='end')     obj.y=GROUND-200;
+  if(edTool==='halfspike'){
+    const gx=edSnapX(px), gy=edSnapY(py);
+    if(edRotation===0) obj.y=gy+GRID/2;
+    else if(edRotation===1) obj.x=gx+GRID/2;
+  }
   if(!edObjects.find(o=>o.type===obj.type&&o.x===obj.x&&o.y===obj.y)){
     edObjects.push(obj); updateEdCount(); drawEditor();
   }
@@ -1079,7 +1084,7 @@ function drawEditor(){
   for(let gx=-(edCamX%GRID);gx<ew;gx+=GRID){ edCtx.beginPath(); edCtx.moveTo(gx,0); edCtx.lineTo(gx,eh); edCtx.stroke(); }
   for(let gy=0;gy<eh;gy+=GRID){ edCtx.beginPath(); edCtx.moveTo(0,gy); edCtx.lineTo(ew,gy); edCtx.stroke(); }
   edCtx.strokeStyle='#00eaff'; edCtx.lineWidth=2;
-  const edGround=Math.round(GROUND/GRID)*GRID;
+  const edGround=GROUND;
   edCtx.beginPath(); edCtx.moveTo(0,edGround); edCtx.lineTo(ew,edGround); edCtx.stroke();
   edObjects.forEach(o=>{
     const sx=o.x-edCamX; if(sx>ew+110||sx+(o.w||GRID)<-110) return;
