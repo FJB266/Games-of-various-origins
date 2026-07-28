@@ -1187,7 +1187,6 @@ function generateBuiltinLevel(){
   levelObjects.push({type:'spike', x:29869, y:141, w:34, h:34, rotation:0});
   levelObjects.push({type:'end', x:30269, y:332, w:10, h:200});
 }
-
 function startBuiltinLevel(){
   currentLevelId = 'builtin3';
   generateBuiltinLevel3();
