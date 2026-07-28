@@ -1188,9 +1188,9 @@ function generateBuiltinLevel(){
   levelObjects.push({type:'end', x:30269, y:332, w:10, h:200});
 }
 function startBuiltinLevel(){
-  currentLevelId = 'builtin3';
-  generateBuiltinLevel3();
-  best = currentLevelBest['builtin3'] || 0;
+  currentLevelId = 'builtin';
+  generateBuiltinLevel();
+  best = currentLevelBest['builtin'] || 0;
   _beginPlay();
 }
 
