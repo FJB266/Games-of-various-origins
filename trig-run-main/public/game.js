@@ -248,7 +248,7 @@ function generateBuiltinLevel(){
   levelObjects.push({type:'spike', x:1717, y:481, w:34, h:34, rotation:0});
   levelObjects.push({type:'spike', x:1853, y:447, w:34, h:34, rotation:0});
   levelObjects.push({type:'spike', x:1989, y:413, w:34, h:34, rotation:0});
-  levelObjects.push({type:'deco', x:3825, y:481, w:34, h:34, color:'#0d1b2a'});
+  levelObjects.push({type:'block', x:3825, y:481, w:34, h:34, color:'#0d1b2a'});
   levelObjects.push({type:'deco', x:3859, y:481, w:34, h:34, color:'#0d1b2a'});
   levelObjects.push({type:'deco', x:3893, y:481, w:34, h:34, color:'#0d1b2a'});
   levelObjects.push({type:'deco', x:3927, y:481, w:34, h:34, color:'#0d1b2a'});
