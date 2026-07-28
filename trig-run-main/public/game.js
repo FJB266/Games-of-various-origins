@@ -603,7 +603,7 @@ function gameDraw(){
   });
   // Draw interactive objects on top
   levelObjects.forEach(o=>{
-    if(o.type==='spike')          drawSpike(o);
+    if(o.type==='spike'||o.type==='halfspike')  drawSpike(o);
     else if(o.type==='block')     drawBlock(o);
     else if(o.type==='slab')      drawSlab(o);
     else if(o.type==='orb')       drawOrb(o);
@@ -633,7 +633,7 @@ function checkCollisions(){
     if(o.x > camX+W+120 || o.x+(o.w||GRID) < camX-120) continue;
     if(o.type==='deco'||o.type==='deco-black') continue;
 
-    if(o.type==='spike'){
+    if(o.type==='spike'||o.type==='halfspike'){
       const rot=o.rotation||0;
       let hx=o.x, hy=o.y, hw=o.w, hh=o.h;
       if(rot===0){ hx+=4; hy+=o.h/2; hw-=8; hh=o.h/2; }
@@ -1012,6 +1012,7 @@ let edObjects=[], currentEditorLevelName='', edPrevFrom='title', edRotation=0;
 
 const ED_DEFS={
   spike:        ()=>({type:'spike',w:GRID,h:GRID}),
+  halfspike:    ()=>({type:'halfspike',w:GRID,h:GRID/2}),
   block:        ()=>({type:'block',w:GRID,h:GRID}),
   slab:         ()=>({type:'slab',w:GRID,h:GRID/2}),
   orb:          ()=>({type:'orb',w:28,h:28}),
@@ -1082,7 +1083,7 @@ function drawEditor(){
   edCtx.beginPath(); edCtx.moveTo(0,edGround); edCtx.lineTo(ew,edGround); edCtx.stroke();
   edObjects.forEach(o=>{
     const sx=o.x-edCamX; if(sx>ew+110||sx+(o.w||GRID)<-110) return;
-    if(o.type==='spike'){
+    if(o.type==='spike'||o.type==='halfspike'){
       const rot=(o.rotation||0)*Math.PI/2;
       edCtx.save(); edCtx.translate(sx+o.w/2,o.y+o.h/2); edCtx.rotate(rot);
       edCtx.fillStyle='#fff'; edCtx.beginPath(); edCtx.moveTo(-o.w/2,o.h/2); edCtx.lineTo(0,-o.h/2); edCtx.lineTo(o.w/2,o.h/2); edCtx.closePath(); edCtx.fill();
@@ -1128,9 +1129,9 @@ function drawEditor(){
       else if(edTool==='slab')  gy2=Math.min(Math.floor(edMY/GRID)*GRID+(GRID/2),GROUND-(GRID/2));
       else                      gy2=edSnapY(edMY);
       edCtx.globalAlpha=.35;
-      const gc={'spike':'#f44','orb':'#ffdd00','jumppad':'#ffaa00','portal-ship':'#aa44ff','portal-cube':'#44ffaa','deco':'#334','deco-black':'#000'};
+      const gc={'spike':'#f44','halfspike':'#f44','orb':'#ffdd00','jumppad':'#ffaa00','portal-ship':'#aa44ff','portal-cube':'#44ffaa','deco':'#334','deco-black':'#000'};
       edCtx.fillStyle=gc[edTool]||'#0088ff';
-      if(edTool==='spike'){
+      if(edTool==='spike'||edTool==='halfspike'){
         edCtx.save(); edCtx.translate(gx2+g.w/2,gy2+g.h/2); edCtx.rotate(edRotation*Math.PI/2);
         edCtx.beginPath(); edCtx.moveTo(-g.w/2,g.h/2); edCtx.lineTo(0,-g.h/2); edCtx.lineTo(g.w/2,g.h/2); edCtx.closePath(); edCtx.fill();
         edCtx.restore();
@@ -1488,7 +1489,7 @@ function drawLevelPreview(objects){
   
   objects.forEach(o=>{
     if(!o||!o.type) return;
-    if(o.type==='spike'){
+    if(o.type==='spike'||o.type==='halfspike'){
       const rot=(o.rotation||0)*Math.PI/2;
       ctx.save(); ctx.translate(o.x+o.w/2,o.y+o.h/2); ctx.rotate(rot);
       ctx.fillStyle='#000'; ctx.beginPath(); ctx.moveTo(-o.w/2,o.h/2); ctx.lineTo(0,-o.h/2); ctx.lineTo(o.w/2,o.h/2); ctx.closePath(); ctx.fill();

@@ -12,6 +12,7 @@ app.use(express.static('public'));
 
 const DATA_FILE = path.join(__dirname, 'data', 'levels.json');
 const USERS_FILE = path.join(__dirname, 'data', 'users.json');
+const SUGGESTIONS_FILE = path.join(__dirname, 'data', 'suggestions.json');
 
 // ─── DATA: LEVELS ───────────────────────────────────────────
 let onlineLevels = [];
@@ -59,6 +60,28 @@ function saveUsers() {
   }
 }
 
+// ─── DATA: SUGGESTIONS ──────────────────────────────────────
+let suggestions = [];
+
+function loadSuggestions() {
+  try {
+    if (fs.existsSync(SUGGESTIONS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(SUGGESTIONS_FILE, 'utf8'));
+      if (Array.isArray(data.suggestions)) suggestions = data.suggestions;
+    }
+  } catch(e) {
+    console.error('Failed to load suggestions:', e.message);
+  }
+}
+
+function saveSuggestions() {
+  try {
+    fs.writeFileSync(SUGGESTIONS_FILE, JSON.stringify({ suggestions }, null, 2));
+  } catch(e) {
+    console.error('Failed to save suggestions:', e.message);
+  }
+}
+
 function hashPassword(password, salt) {
   salt = salt || crypto.randomBytes(16).toString('hex');
   const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
@@ -85,6 +108,7 @@ function findUserByToken(token) {
 
 loadLevels();
 loadUsers();
+loadSuggestions();
 onlineLevels.forEach(l => { if (l.likes === undefined) l.likes = 0; });
 
 app.get('/', (req, res) => res.redirect('/trig-run.html'));
@@ -291,6 +315,27 @@ app.get('/api/users/:username', (req, res) => {
 app.get('/api/levels/mine', requireAuth, (req, res) => {
     const myLevels = onlineLevels.filter(l => l.uploaderId === req.user.username);
     res.json({ levels: myLevels });
+});
+
+// ─── SUGGESTIONS ─────────────────────────────────────────────
+app.post('/api/suggestions', (req, res) => {
+    const { username, text } = req.body;
+    if (!text || !text.trim()) return res.status(400).json({ success: false, error: 'Suggestion text required' });
+    if (text.trim().length > 500) return res.status(400).json({ success: false, error: 'Suggestion too long (max 500 chars)' });
+
+    const suggestion = {
+        id: 'sug_' + Date.now(),
+        username: (username && username.trim()) || 'Anonymous',
+        text: text.trim(),
+        createdAt: new Date().toISOString()
+    };
+    suggestions.unshift(suggestion);
+    saveSuggestions();
+    res.status(201).json({ success: true });
+});
+
+app.get('/api/suggestions', (req, res) => {
+    res.json({ suggestions: suggestions.slice(0, 50) });
 });
 
 app.listen(PORT, () => console.log(`✓ Geometry Dash Backend API running on port ${PORT}`));
