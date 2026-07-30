@@ -2610,11 +2610,21 @@ function checkCollisions(){
 
     if(o.type==='spike'||o.type==='halfspike'){
       const rot=o.rotation||0;
-      let hx=o.x, hy=o.y, hw=o.w, hh=o.h;
-      if(rot===0){ hx+=4; hy+=o.h/2; hw-=8; hh=o.h/2; }
-      else if(rot===1){ hx+=o.w/2; hy+=4; hw=o.w/2; hh-=8; }
-      else if(rot===2){ hx+=4; hw-=8; hh=o.h/2; }
-      else { hy+=4; hw=o.w/2; hh-=8; }
+      // Small, centered, forgiving hitbox — sized/positioned relative to the
+      // spike's own bounding box so it automatically scales with GRID and
+      // works the same for halfspikes (half-height) as full spikes.
+      const hw0 = o.w*0.35, hh0 = o.h*0.42; // hitbox size
+      const inset = o.h*0.27;                // gap between the tip and the hitbox
+      let hx,hy,hw,hh;
+      if(rot===0){       // point up
+        hw=hw0; hh=hh0; hx=o.x+(o.w-hw)/2; hy=o.y+inset;
+      } else if(rot===1){ // point right
+        hw=hh0; hh=hw0; hy=o.y+(o.h-hh)/2; hx=o.x+o.w-inset-hw;
+      } else if(rot===2){ // point down
+        hw=hw0; hh=hh0; hx=o.x+(o.w-hw)/2; hy=o.y+o.h-inset-hh;
+      } else {            // point left
+        hw=hh0; hh=hw0; hy=o.y+(o.h-hh)/2; hx=o.x+inset;
+      }
       if(rOver(px,py,ps,ps,hx,hy,hw,hh)) return 'die';
     }
     else if(o.type==='block'||o.type==='slab'){
