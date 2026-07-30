@@ -4,7 +4,7 @@
 const W=2000, H=1000, GROUND=H-68;
 const GRAVITY=0.90, JUMP_FORCE=-12.5, SPEED=5.7, BUFFER=10, GRID=34;
 const SHIP_THRUST=-0.45, SHIP_GRAV=0.4, SHIP_MAXVY=8;
-const ZOOM = 1.75; // >1 = zoomed in, <1 = zoomed out
+const ZOOM = 1.3; // >1 = zoomed in, <1 = zoomed out
 const COL={
   bg1:'#01447a', bg2:'#008cff',
   ground:'#01447a', groundLine:'#ffffff',
