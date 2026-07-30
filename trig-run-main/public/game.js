@@ -1,8 +1,8 @@
 'use strict';
 
 // ─── CONSTANTS ───────────────────────────────────────────────
-const W=1200, H=600, GROUND=H-68;
-const GRAVITY=0.8, JUMP_FORCE=-12, SPEED=5.7, BUFFER=20, GRID=34;
+const W=1600, H=900, GROUND=H-68;
+const GRAVITY=1.0, JUMP_FORCE=-12.5, SPEED=5.7, BUFFER=10, GRID=34;
 const SHIP_THRUST=-0.45, SHIP_GRAV=0.4, SHIP_MAXVY=8;
 const COL={
   bg1:'#01447a', bg2:'#008cff',
