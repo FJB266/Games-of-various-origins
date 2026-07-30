@@ -4,6 +4,7 @@
 const W=2000, H=1000, GROUND=H-68;
 const GRAVITY=0.97, JUMP_FORCE=-12.5, SPEED=5.7, BUFFER=10, GRID=34;
 const SHIP_THRUST=-0.45, SHIP_GRAV=0.4, SHIP_MAXVY=8;
+const ZOOM = 1.3; // >1 = zoomed in, <1 = zoomed out
 const COL={
   bg1:'#01447a', bg2:'#008cff',
   ground:'#01447a', groundLine:'#ffffff',
@@ -2555,16 +2556,19 @@ function drawProgressBar(){
   document.getElementById('hud-pct-label').textContent = pctPct;
 }
 
+//-----------------GAME DRAW---------------------
+
 function gameDraw(){
   ctx.clearRect(0,0,W,H);
+  ctx.save();
+  ctx.scale(ZOOM, ZOOM);
+
   drawBg();
   drawGround();
-  // Draw deco layer first (background)
   levelObjects.forEach(o=>{
     if(o.type==='deco')           drawDeco(o);
     else if(o.type==='deco-black') drawDecoBlack(o);
   });
-  // Draw interactive objects on top
   levelObjects.forEach(o=>{
     if(o.type==='spike'||o.type==='halfspike')  drawSpike(o);
     else if(o.type==='block')     drawBlock(o);
@@ -2576,14 +2580,15 @@ function gameDraw(){
   });
   drawParticles();
   drawPlayer();
+
+  ctx.restore();
+
   if(gameState==='playing'){
     drawProgressBar();
     document.getElementById('hud-attempts').textContent = 'Attempt '+attempts;
     const modeEl = document.getElementById('hud-mode');
     modeEl.textContent = gameMode.toUpperCase();
     modeEl.style.color = gameMode==='ship' ? '#aa44ff' : 'rgba(255,255,255,.2)';
-    // Bug fix: removed the broken homepage-link textContent assignment.
-    // The element now lives statically in index.html as a real <a> tag.
   }
 }
 
@@ -2655,6 +2660,7 @@ function update(dt){
     }
     player.vy += GRAVITY*dt;
     player.y  += player.vy*dt;
+    camX = player.x - 150/ZOOM;
     player.onGround = false;
     if(player.y+player.size>=GROUND){ player.y=GROUND-player.size; player.vy=0; player.onGround=true; }
     if(!player.onGround) player.angle += .1*dt;
