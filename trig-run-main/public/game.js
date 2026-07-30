@@ -247,7 +247,7 @@ function generateBuiltinLevel(){
   levelObjects = [];
   const G = GROUND;
   const sp = (x, y) => levelObjects.push({type:'spike', x, y: y !== undefined ? y : G-GRID, w:GRID, h:GRID, rotation:0});
-  const bl = (x,y,w,h) => levelObjects.push({type:'block', x, y:y??G-GRID, w:w??GRID, h:h??GRID});
+  const bl = (x,y,w,h) => levelObjects.push({type:'block', x, y:-y??G-GRID, w:w??GRID, h:h??GRID});
   const sl = (x,y) => levelObjects.push({type:'slab', x, y:y??(G-GRID/2), w:GRID, h:GRID/2});
 
   sp(595);
