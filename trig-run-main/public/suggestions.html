@@ -22,6 +22,15 @@
     .msg{font-size:12px;letter-spacing:1px;min-height:18px;text-align:center;}
     .msg.ok{color:#0f8;}
     .msg.err{color:#f44;}
+    .sug{position:relative;}
+    .sug-del{position:absolute;top:8px;right:8px;background:none;border:1px solid rgba(255,68,68,.4);color:#f66;font-size:10px;font-family:'Arial Black',sans-serif;padding:3px 8px;border-radius:3px;cursor:pointer;}
+    .sug-del:hover{background:rgba(255,68,68,.15);}
+    .role-badge{display:inline-block;font-size:8px;letter-spacing:1px;padding:1px 6px;border-radius:3px;vertical-align:middle;margin-left:6px;}
+    .role-user{background:rgba(255,255,255,.1);color:#9aa;}
+    .role-moderator{background:rgba(0,150,255,.2);color:#6cf;border:1px solid rgba(0,150,255,.4);}
+    .role-elder{background:rgba(170,68,255,.2);color:#c9f;border:1px solid rgba(170,68,255,.4);}
+    .role-admin{background:rgba(255,68,100,.25);color:#ff8fa0;border:1px solid rgba(255,68,100,.5);}
+    .role-pending{background:rgba(255,220,0,.15);color:#ffd54d;border:1px solid rgba(255,220,0,.4);}
     h2{font-size:20px;letter-spacing:3px;color:#00eaff;margin-bottom:16px;text-align:center;}
     .list{width:100%;max-width:500px;display:flex;flex-direction:column;gap:10px;}
     .sug{background:rgba(0,200,255,.04);border:1px solid rgba(0,200,255,.12);border-radius:8px;padding:12px;}
@@ -49,6 +58,24 @@
   </div>
 
   <script>
+    const ROLE_INFO={user:{label:'PLAYER',rank:0},moderator:{label:'MODERATOR',rank:1},elder:{label:'ELDER MOD',rank:2},admin:{label:'ADMIN',rank:3}};
+    let sugToken=localStorage.getItem('trun_auth_token')||'';
+    let sugUser=null;
+    function sugHasRole(min){ return sugUser && (ROLE_INFO[sugUser.role]?ROLE_INFO[sugUser.role].rank:0) >= ROLE_INFO[min].rank; }
+    function sugEscape(s){ return String(s==null?'':s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+    function sugBadge(u){
+      if(!u || (u.role==='user' && !u.modRequest)) return '';
+      const info=ROLE_INFO[u.role]||ROLE_INFO.user;
+      return ' <span class="role-badge role-'+(u.role||'user')+'">'+info.label+'</span>';
+    }
+    function sugFetch(url,opts){
+      opts=opts||{};
+      opts.headers=Object.assign({},opts.headers||{});
+      if(sugToken) opts.headers['Authorization']='Bearer '+sugToken;
+      if(opts.body && typeof opts.body==='object'){ opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(opts.body); }
+      return fetch(url,opts);
+    }
+
     function loadSuggestions(){
       fetch('/api/suggestions')
         .then(r=>r.json())
@@ -64,16 +91,34 @@
             el.className='sug';
             const date=new Date(s.createdAt).toLocaleDateString();
             el.innerHTML=`
-              <div class="sug-user">${s.username}</div>
-              <div class="sug-text">${s.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+              <div class="sug-user">${sugEscape(s.username)}${sugBadge(s)}</div>
+              <div class="sug-text">${sugEscape(s.text)}</div>
               <div class="sug-date">${date}</div>
             `;
+            if(sugHasRole('moderator')){
+              const del=document.createElement('button');
+              del.className='sug-del';
+              del.textContent='🗑 DELETE';
+              del.onclick=()=>deleteSuggestion(s.id,el);
+              el.appendChild(del);
+            }
             list.appendChild(el);
           });
         })
         .catch(()=>{
           document.getElementById('sug-list').innerHTML='<div class="empty">Failed to load suggestions</div>';
         });
+    }
+
+    function deleteSuggestion(id,el){
+      if(!confirm('Delete this suggestion?')) return;
+      sugFetch('/api/suggestions/'+encodeURIComponent(id),{method:'DELETE'})
+        .then(r=>r.json())
+        .then(d=>{
+          if(d.success){ el.remove(); }
+          else alert('Delete failed: '+(d.error||'Unknown error'));
+        })
+        .catch(e=>alert('Delete error: '+e.message));
     }
 
     function submitSuggestion(){
@@ -115,6 +160,15 @@
         });
     }
 
+    function restoreSession(){
+      if(!sugToken) return;
+      sugFetch('/api/auth/me')
+        .then(r=>r.json())
+        .then(d=>{ if(d.success && d.user){ sugUser=d.user; loadSuggestions(); } })
+        .catch(()=>{});
+    }
+
+    restoreSession();
     loadSuggestions();
   </script>
 </body>

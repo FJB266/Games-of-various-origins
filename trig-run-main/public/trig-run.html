@@ -30,6 +30,7 @@
     <button class="tbtn" onclick="openLevelSelect()">► PLAY</button>
     <button class="tbtn sec" onclick="openBrowseLevels()">⬇ BROWSE LEVELS</button>
     <button class="tbtn sec" onclick="openEditorFromTitle()">✎ LEVEL EDITOR</button>
+    <button class="tbtn sec" id="title-admin-btn" onclick="openAdminScreen()" style="display:none;">⚙ USER MANAGEMENT</button>
     <a href="suggestions.html" class="tbtn sec" style="text-decoration:none;text-align:center;display:inline-block;">💡 SUGGESTIONS</a>
   </div>
   <div id="title-user-bar">
@@ -55,6 +56,7 @@
       <input type="text" id="auth-reg-user" class="auth-input" placeholder="Username (3-20 chars)" maxlength="20" autocomplete="username">
       <input type="password" id="auth-reg-pass" class="auth-input" placeholder="Password (min 4 chars)" maxlength="100" autocomplete="new-password">
       <input type="password" id="auth-reg-pass2" class="auth-input" placeholder="Confirm password" maxlength="100" autocomplete="new-password">
+      <input type="text" id="auth-reg-invite" class="auth-input" placeholder="Invite code (optional)" maxlength="50" autocomplete="off">
       <div id="auth-reg-error" class="auth-error"></div>
       <button class="tbtn" onclick="doRegister()">REGISTER</button>
     </div>
@@ -89,6 +91,21 @@
     <div style="display:flex;gap:8px;margin-top:12px;">
       <button class="tbtn sec" onclick="closeProfile()">← BACK</button>
       <button class="tbtn sec red" id="profile-logout-btn" onclick="doLogout()" style="display:none;">LOGOUT</button>
+    </div>
+  </div>
+</div>
+
+<!-- USER MANAGEMENT (elder+) -->
+<div id="admin-screen" class="screen">
+  <div id="admin-content">
+    <h2>USER MANAGEMENT</h2>
+    <p>MANAGE ROLES & MODERATOR REQUESTS</p>
+    <div id="admin-loading" style="display:none;text-align:center;padding:20px;color:#445;">Loading users...</div>
+    <div id="admin-msg" class="auth-error" style="text-align:center;margin:8px 0;"></div>
+    <div id="admin-list"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="tbtn sec" onclick="closeAdminScreen()">← BACK</button>
+      <button class="tbtn sec" onclick="refreshAdminScreen()">↺ REFRESH</button>
     </div>
   </div>
 </div>

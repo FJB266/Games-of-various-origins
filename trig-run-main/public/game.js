@@ -48,6 +48,27 @@ let lastTime = null;
 let authToken = localStorage.getItem('trun_auth_token') || '';
 let currentUser = null;
 
+// ─── ROLES ───────────────────────────────────────────────────
+const ROLE_INFO = {
+  user:      { label: 'PLAYER',    rank: 0 },
+  moderator: { label: 'MODERATOR', rank: 1 },
+  elder:     { label: 'ELDER MOD', rank: 2 },
+  admin:     { label: 'ADMIN',     rank: 3 }
+};
+function userRoleRank(u){ return (u && ROLE_INFO[u.role]) ? ROLE_INFO[u.role].rank : 0; }
+function hasRole(u, min){ return userRoleRank(u) >= ((ROLE_INFO[min] && ROLE_INFO[min].rank) || 0); }
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function roleBadgeHTML(u){
+  if(!u || (u.role==='user' && !u.modRequest)) return '';
+  const info = ROLE_INFO[u.role] || ROLE_INFO.user;
+  let html = ' <span class="role-badge role-'+(u.role||'user')+'">'+info.label+'</span>';
+  if(u.modRequest){
+    const req = ROLE_INFO[u.modRequest.requestedRole] ? ROLE_INFO[u.modRequest.requestedRole].label : (u.modRequest.requestedRole||'');
+    html += ' <span class="role-badge role-pending" title="Awaiting admin approval">PENDING '+req+'</span>';
+  }
+  return html;
+}
+
 function authFetch(url, opts) {
   opts = opts || {};
   opts.headers = Object.assign({}, opts.headers || {});
@@ -62,9 +83,9 @@ function authFetch(url, opts) {
 function updateTitleUserBar() {
   const display = document.getElementById('title-user-display');
   const btn = document.getElementById('title-auth-btn');
-  if (!display || !btn) return;
+  const adminBtn = document.getElementById('title-admin-btn');
   if (currentUser) {
-    display.textContent = currentUser.displayName || currentUser.username;
+    display.innerHTML = escapeHtml(currentUser.displayName || currentUser.username) + roleBadgeHTML(currentUser);
     display.onclick = openProfile;
     btn.textContent = 'PROFILE';
     btn.onclick = openProfile;
@@ -74,6 +95,7 @@ function updateTitleUserBar() {
     btn.textContent = 'LOGIN';
     btn.onclick = openAuthModal;
   }
+  if (adminBtn) adminBtn.style.display = hasRole(currentUser, 'elder') ? 'inline-block' : 'none';
 }
 
 function restoreSession() {
@@ -138,11 +160,12 @@ function doRegister() {
   const username = document.getElementById('auth-reg-user').value.trim();
   const password = document.getElementById('auth-reg-pass').value;
   const password2 = document.getElementById('auth-reg-pass2').value;
+  const inviteCode = document.getElementById('auth-reg-invite').value.trim();
   const errEl = document.getElementById('auth-reg-error');
   if (!username || !password) { errEl.textContent = 'Fill in all fields'; return; }
   if (password !== password2) { errEl.textContent = 'Passwords do not match'; return; }
   errEl.textContent = '';
-  fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) })
+  fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, inviteCode }) })
     .then(r => r.json())
     .then(d => {
       if (d.success) {
@@ -151,6 +174,9 @@ function doRegister() {
         localStorage.setItem('trun_auth_token', authToken);
         updateTitleUserBar();
         closeAuthModal();
+        if (currentUser && currentUser.modRequest) {
+          alert('✓ Account created! Your moderator request is pending approval by an admin.');
+        }
       } else {
         errEl.textContent = d.error || 'Registration failed';
       }
@@ -171,7 +197,7 @@ function openProfile() {
   if (!currentUser) { openAuthModal(); return; }
   hideAll();
   document.getElementById('profile-screen').classList.add('show');
-  document.getElementById('profile-username').textContent = currentUser.username;
+  document.getElementById('profile-username').innerHTML = escapeHtml(currentUser.username) + roleBadgeHTML(currentUser);
   document.getElementById('profile-display').textContent = 'Display: ' + (currentUser.displayName || currentUser.username);
   document.getElementById('profile-avatar').textContent = (currentUser.displayName || currentUser.username)[0].toUpperCase();
   const date = new Date(currentUser.createdAt).toLocaleDateString();
@@ -227,6 +253,101 @@ function fetchProfileLevels() {
       });
     })
     .catch(() => { grid.innerHTML = '<p style="color:#f44;font-size:11px;">Failed to load levels</p>'; });
+}
+
+// ─── USER MANAGEMENT (elder+) ────────────────────────────────
+function openAdminScreen(){
+  if(!hasRole(currentUser,'elder')) return;
+  hideAll();
+  document.getElementById('admin-screen').classList.add('show');
+  renderAdminScreen();
+}
+function closeAdminScreen(){
+  hideAll();
+  document.getElementById('title-screen').classList.add('show');
+}
+function refreshAdminScreen(){ renderAdminScreen(); }
+
+function renderAdminScreen(){
+  const list=document.getElementById('admin-list');
+  const loading=document.getElementById('admin-loading');
+  const msg=document.getElementById('admin-msg');
+  list.innerHTML=''; msg.textContent='';
+  loading.style.display='block';
+  authFetch('/api/admin/users').then(r=>r.json()).then(d=>{
+    loading.style.display='none';
+    if(d.error){ msg.textContent=d.error; return; }
+    if(!d.users.length){ list.innerHTML='<p style="color:#445;text-align:center;">No users</p>'; return; }
+    const isAdmin=hasRole(currentUser,'admin');
+    const isElder=hasRole(currentUser,'elder');
+    d.users.forEach(u=>{
+      const row=document.createElement('div'); row.className='admin-row';
+      const initial=(u.displayName||u.username).charAt(0).toUpperCase();
+      const nameCell=document.createElement('div'); nameCell.className='admin-user';
+      nameCell.innerHTML=
+        '<div class="admin-avatar">'+initial+'</div>'+
+        '<div class="admin-id">'+
+          '<div class="admin-name">'+escapeHtml(u.username)+roleBadgeHTML(u)+'</div>'+
+          '<div class="admin-sub">'+escapeHtml(u.displayName||u.username)+' • 📦 '+(u.levelsUploaded||0)+' levels • '+new Date(u.createdAt).toLocaleDateString()+'</div>'+
+        '</div>';
+      row.appendChild(nameCell);
+      const actions=document.createElement('div'); actions.className='admin-actions';
+      if(isAdmin && u.modRequest){
+        const reqLabel=ROLE_INFO[u.modRequest.requestedRole]?ROLE_INFO[u.modRequest.requestedRole].label:(u.modRequest.requestedRole||'');
+        const req=document.createElement('span'); req.className='admin-req'; req.textContent='Requests '+reqLabel;
+        actions.appendChild(req);
+        const ap=document.createElement('button'); ap.className='admin-btn approve'; ap.textContent='APPROVE';
+        ap.onclick=()=>adminAction(()=>approveModRequest(u.username));
+        actions.appendChild(ap);
+        const rj=document.createElement('button'); rj.className='admin-btn reject'; rj.textContent='REJECT';
+        rj.onclick=()=>adminAction(()=>rejectModRequest(u.username));
+        actions.appendChild(rj);
+      } else if(isElder && u.username!==currentUser.username){
+        const sel=document.createElement('select'); sel.className='admin-role-select';
+        ['user','moderator','elder','admin'].forEach(r=>{
+          const opt=document.createElement('option'); opt.value=r;
+          opt.textContent=(ROLE_INFO[r]?ROLE_INFO[r].label:r);
+          if(r===u.role) opt.selected=true;
+          sel.appendChild(opt);
+        });
+        sel.onchange=()=>adminAction(()=>setUserRole(u.username,sel.value));
+        actions.appendChild(sel);
+        if(isAdmin){
+          const del=document.createElement('button'); del.className='admin-btn reject'; del.textContent='DELETE';
+          del.onclick=()=>adminAction(()=>deleteUserAccount(u.username));
+          actions.appendChild(del);
+        }
+      } else {
+        const stat=document.createElement('span'); stat.className='admin-req'; stat.textContent='—';
+        actions.appendChild(stat);
+      }
+      row.appendChild(actions);
+      list.appendChild(row);
+    });
+  }).catch(()=>{ loading.style.display='none'; msg.textContent='Connection error'; });
+}
+
+function adminAction(fn){
+  const msg=document.getElementById('admin-msg');
+  msg.textContent='';
+  fn().then(d=>{
+    if(!d) return;
+    if(d.error) msg.textContent=d.error;
+    else renderAdminScreen();
+  }).catch(()=>{ msg.textContent='Connection error'; });
+}
+function setUserRole(username,role){
+  return authFetch('/api/admin/users/'+encodeURIComponent(username)+'/role',{method:'PUT',body:{role}}).then(r=>r.json());
+}
+function approveModRequest(username){
+  return authFetch('/api/admin/users/'+encodeURIComponent(username)+'/approve',{method:'POST'}).then(r=>r.json());
+}
+function rejectModRequest(username){
+  return authFetch('/api/admin/users/'+encodeURIComponent(username)+'/reject',{method:'POST'}).then(r=>r.json());
+}
+function deleteUserAccount(username){
+  if(!confirm('Delete account "'+username+'"? This cannot be undone.')) return Promise.resolve(null);
+  return authFetch('/api/admin/users/'+encodeURIComponent(username),{method:'DELETE'}).then(r=>r.json());
 }
 
 function resetPlayer(){
@@ -3336,8 +3457,8 @@ function doSearch(){
           const date=new Date(l.uploadedAt).toLocaleDateString();
           const displayName=l.uploaderDisplayName||l.uploaderId||'Anonymous';
           card.innerHTML=`
-            <div class="bl-card-name">${l.name}</div>
-            <div class="bl-card-uploader">by ${displayName}</div>
+            <div class="bl-card-name">${escapeHtml(l.name)}</div>
+            <div class="bl-card-uploader">by ${escapeHtml(displayName)}${l.uploaderRole?roleBadgeHTML({role:l.uploaderRole}):''}</div>
             <div class="bl-card-date">${date}</div>
             <div class="bl-card-downloads">📥 ${l.downloads} ⭐ ${l.likes||0}</div>
           `;
@@ -3367,8 +3488,8 @@ function doSearch(){
           const initial=(u.displayName||u.username).charAt(0).toUpperCase();
           card.innerHTML=`
             <div class="search-user-avatar">${initial}</div>
-            <div class="search-user-name">${u.username}</div>
-            <div class="search-user-display">${u.displayName||u.username}</div>
+            <div class="search-user-name">${escapeHtml(u.username)}${roleBadgeHTML(u)}</div>
+            <div class="search-user-display">${escapeHtml(u.displayName||u.username)}</div>
             <div class="search-user-levels">📦 ${u.levelsUploaded} levels</div>
           `;
           card.addEventListener('click',()=>{
@@ -3394,7 +3515,7 @@ function viewUserProfile(username){
       hideAll();
       document.getElementById('profile-screen').classList.add('show');
       document.getElementById('profile-avatar').textContent=(d.displayName||d.username).charAt(0).toUpperCase();
-      document.getElementById('profile-username').textContent=d.username;
+      document.getElementById('profile-username').innerHTML=escapeHtml(d.username)+roleBadgeHTML(d);
       document.getElementById('profile-display').textContent='Display: '+(d.displayName||d.username);
       document.getElementById('profile-joined').textContent='Joined: '+new Date(d.createdAt).toLocaleDateString();
       document.getElementById('profile-stats').textContent='Levels uploaded: '+(d.levelsUploaded||0);
@@ -3439,8 +3560,8 @@ function fetchBrowseLevels(){
         const date=new Date(l.uploadedAt).toLocaleDateString();
         const displayName = l.uploaderDisplayName || l.uploaderId || 'Anonymous';
         card.innerHTML=`
-          <div class="bl-card-name">${l.name}</div>
-          <div class="bl-card-uploader">by ${displayName}</div>
+          <div class="bl-card-name">${escapeHtml(l.name)}</div>
+          <div class="bl-card-uploader">by ${escapeHtml(displayName)}${l.uploaderRole?roleBadgeHTML({role:l.uploaderRole}):''}</div>
           <div class="bl-card-date">${date}</div>
           <div class="bl-card-downloads">📥 ${l.downloads} ⭐ ${l.likes||0}</div>
         `;
@@ -3469,9 +3590,10 @@ function previewLevel(levelId){
       const date=new Date(level.uploadedAt).toLocaleDateString();
       document.getElementById('preview-level-info').textContent=`By ${level.uploaderDisplayName || level.uploaderId || 'Anonymous'} • ${date} • ${level.downloads} downloads`;
       
-      // Check if user can delete
+      // Check if user can delete (own level, or moderator+)
       const delBtn=document.getElementById('preview-delete-btn');
-      delBtn.style.display=(currentUser && currentUser.username===level.uploaderId)?'block':'none';
+      const canDelete = currentUser && (currentUser.username===level.uploaderId || hasRole(currentUser,'moderator'));
+      delBtn.style.display=canDelete?'block':'none';
       
       // Draw preview
       drawLevelPreview(parseCompressedLevel(level.objects));

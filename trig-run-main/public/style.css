@@ -212,3 +212,32 @@ body{background:#000;font-family:'Arial Black',sans-serif;overflow:hidden;user-s
 .profile-lv-meta{color:#445;font-size:9px;letter-spacing:1px;}
 .tbtn.red{border-color:rgba(255,80,80,.3);color:#f88;}
 .tbtn.red:hover{border-color:#f44;color:#f44;background:rgba(255,50,50,.08);}
+/* ROLES */
+.role-badge{display:inline-block;font-size:8px;letter-spacing:1px;padding:1px 6px;border-radius:3px;vertical-align:middle;margin-left:6px;font-weight:normal;}
+.role-user{background:rgba(255,255,255,.08);color:#9aa;border:1px solid rgba(255,255,255,.15);}
+.role-moderator{background:rgba(0,150,255,.18);color:#6cf;border:1px solid rgba(0,150,255,.4);}
+.role-elder{background:rgba(170,68,255,.18);color:#c9f;border:1px solid rgba(170,68,255,.4);}
+.role-admin{background:rgba(255,68,100,.22);color:#ff8fa0;border:1px solid rgba(255,68,100,.5);}
+.role-pending{background:rgba(255,220,0,.15);color:#ffd54d;border:1px solid rgba(255,220,0,.4);}
+
+/* USER MANAGEMENT */
+#admin-screen{background:linear-gradient(160deg,#050510,#0a0a28 60%,#0d0d1e);}
+#admin-content{position:relative;z-index:2;display:flex;flex-direction:column;width:100%;max-width:760px;gap:10px;}
+#admin-content h2{font-size:28px;color:#fff;letter-spacing:5px;text-shadow:0 0 16px cyan;text-align:center;}
+#admin-content p{color:#445;font-size:10px;letter-spacing:2px;text-align:center;}
+#admin-list{display:flex;flex-direction:column;gap:8px;max-height:70vh;overflow-y:auto;padding-right:4px;}
+.admin-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(0,200,255,.04);border:1px solid rgba(0,200,255,.12);border-radius:8px;padding:10px 14px;}
+.admin-user{display:flex;align-items:center;gap:12px;min-width:0;}
+.admin-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#00eaff,#0055ff);display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;font-family:'Arial Black',sans-serif;flex-shrink:0;}
+.admin-id{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.admin-name{color:#fff;font-size:12px;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.admin-sub{color:#445;font-size:9px;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.admin-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.admin-btn{background:transparent;border:1px solid #1a1a30;color:#ccc;font-size:9px;font-family:'Arial Black',sans-serif;padding:5px 10px;border-radius:4px;cursor:pointer;letter-spacing:1px;transition:all .15s;}
+.admin-btn.approve{border-color:rgba(0,255,136,.35);color:#0f8;}
+.admin-btn.approve:hover{background:rgba(0,255,136,.12);}
+.admin-btn.reject{border-color:rgba(255,80,80,.35);color:#f88;}
+.admin-btn.reject:hover{background:rgba(255,50,50,.12);}
+.admin-role-select{background:#0a0a1c;border:1px solid #1a1a30;color:#fff;font-size:10px;font-family:'Arial Black',sans-serif;padding:5px 6px;border-radius:4px;cursor:pointer;letter-spacing:1px;}
+.admin-role-select:focus{outline:none;border-color:#00eaff;}
+.admin-req{color:#445;font-size:9px;letter-spacing:1px;}
