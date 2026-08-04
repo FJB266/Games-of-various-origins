@@ -1,167 +1,341 @@
-'use strict';
-
 const express = require('express');
-const path    = require('path');
-const fs      = require('fs');
-
-const app  = express();
+const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ── Middleware ──────────────────────────────────────────────────────────────
-app.use(express.json({ limit: '50mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(cors());
+app.use(express.json());
+app.use(express.static('public'));
 
-// ── Utility Functions ───────────────────────────────────────────────────────
-const LEVELS_FILE = path.join(__dirname, 'data', 'levels.json');
+const DATA_FILE = path.join(__dirname, 'data', 'levels.json');
+const USERS_FILE = path.join(__dirname, 'data', 'users.json');
+const SUGGESTIONS_FILE = path.join(__dirname, 'data', 'suggestions.json');
 
-function generateId(prefix, length = 12) {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let id = '';
-  for (let i = 0; i < length; i++) id += chars[Math.floor(Math.random() * chars.length)];
-  return prefix + '_' + id;
-}
+// ─── DATA: LEVELS ───────────────────────────────────────────
+let onlineLevels = [];
+let levelIdCounter = 1;
 
 function loadLevels() {
   try {
-    return JSON.parse(fs.readFileSync(LEVELS_FILE, 'utf8'));
-  } catch (e) {
-    return { levels: [] };
+    if (fs.existsSync(DATA_FILE)) {
+      const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+      if (Array.isArray(data.levels)) onlineLevels = data.levels;
+      if (data.levelIdCounter) levelIdCounter = data.levelIdCounter;
+    }
+  } catch(e) {
+    console.error('Failed to load levels:', e.message);
   }
 }
 
-function saveLevels(data) {
+function saveLevels() {
   try {
-    fs.writeFileSync(LEVELS_FILE, JSON.stringify(data, null, 2));
-    return true;
-  } catch (e) {
-    console.error('Error saving levels:', e);
-    return false;
+    fs.writeFileSync(DATA_FILE, JSON.stringify({ levels: onlineLevels, levelIdCounter }, null, 2));
+  } catch(e) {
+    console.error('Failed to save levels:', e.message);
   }
 }
 
-// ── API Routes: Levels ──────────────────────────────────────────────────────
+// ─── DATA: USERS ────────────────────────────────────────────
+let users = [];
 
-// POST /api/levels/upload - Upload a new level
-app.post('/api/levels/upload', (req, res) => {
+function loadUsers() {
   try {
-    const { name, objects, uploaderId } = req.body;
-    
-    if (!name || !Array.isArray(objects) || !uploaderId) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (fs.existsSync(USERS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+      if (Array.isArray(data.users)) users = data.users;
     }
-    
-    if (name.length > 100) {
-      return res.status(400).json({ error: 'Level name too long (max 100 chars)' });
+  } catch(e) {
+    console.error('Failed to load users:', e.message);
+  }
+}
+
+function saveUsers() {
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify({ users }, null, 2));
+  } catch(e) {
+    console.error('Failed to save users:', e.message);
+  }
+}
+
+// ─── DATA: SUGGESTIONS ──────────────────────────────────────
+let suggestions = [];
+
+function loadSuggestions() {
+  try {
+    if (fs.existsSync(SUGGESTIONS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(SUGGESTIONS_FILE, 'utf8'));
+      if (Array.isArray(data.suggestions)) suggestions = data.suggestions;
     }
-    
-    if (objects.length > 1000) {
-      return res.status(400).json({ error: 'Too many objects (max 1000)' });
-    }
-    
-    const data = loadLevels();
-    const levelId = generateId('lv');
+  } catch(e) {
+    console.error('Failed to load suggestions:', e.message);
+  }
+}
+
+function saveSuggestions() {
+  try {
+    fs.writeFileSync(SUGGESTIONS_FILE, JSON.stringify({ suggestions }, null, 2));
+  } catch(e) {
+    console.error('Failed to save suggestions:', e.message);
+  }
+}
+
+function hashPassword(password, salt) {
+  salt = salt || crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+  return { salt, hash };
+}
+
+function verifyPassword(password, salt, hash) {
+  const result = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+  return result === hash;
+}
+
+function generateToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+function findUserByUsername(username) {
+  return users.find(u => u.username.toLowerCase() === username.toLowerCase());
+}
+
+function findUserByToken(token) {
+  if (!token) return null;
+  return users.find(u => u.sessionToken === token);
+}
+
+loadLevels();
+loadUsers();
+loadSuggestions();
+onlineLevels.forEach(l => { if (l.likes === undefined) l.likes = 0; });
+
+app.get('/', (req, res) => res.redirect('/trig-run.html'));
+
+// ─── AUTH MIDDLEWARE ─────────────────────────────────────────
+function requireAuth(req, res, next) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  const user = findUserByToken(token);
+  if (!user) return res.status(401).json({ success: false, error: 'Not logged in' });
+  req.user = user;
+  next();
+}
+
+// ─── AUTH ROUTES ─────────────────────────────────────────────
+app.post('/api/auth/register', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ success: false, error: 'Username and password required' });
+
+  const trimmed = username.trim();
+  if (trimmed.length < 3 || trimmed.length > 20) return res.status(400).json({ success: false, error: 'Username must be 3-20 characters' });
+  if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) return res.status(400).json({ success: false, error: 'Username can only contain letters, numbers, and underscores' });
+  if (password.length < 4) return res.status(400).json({ success: false, error: 'Password must be at least 4 characters' });
+
+  if (findUserByUsername(trimmed)) return res.status(409).json({ success: false, error: 'Username already taken' });
+
+  const { salt, hash } = hashPassword(password);
+  const token = generateToken();
+  const user = {
+    username: trimmed,
+    displayName: trimmed,
+    salt,
+    hash,
+    sessionToken: token,
+    createdAt: new Date().toISOString(),
+    levelsUploaded: 0
+  };
+
+  users.push(user);
+  saveUsers();
+
+  res.status(201).json({
+    success: true,
+    token,
+    user: { username: user.username, displayName: user.displayName, createdAt: user.createdAt, levelsUploaded: user.levelsUploaded }
+  });
+});
+
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ success: false, error: 'Username and password required' });
+
+  const user = findUserByUsername(username);
+  if (!user || !verifyPassword(password, user.salt, user.hash)) {
+    return res.status(401).json({ success: false, error: 'Invalid username or password' });
+  }
+
+  user.sessionToken = generateToken();
+  saveUsers();
+
+  res.json({
+    success: true,
+    token: user.sessionToken,
+    user: { username: user.username, displayName: user.displayName, createdAt: user.createdAt, levelsUploaded: user.levelsUploaded }
+  });
+});
+
+app.get('/api/auth/me', (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  const user = findUserByToken(token);
+  if (!user) return res.status(401).json({ success: false, error: 'Not logged in' });
+
+  res.json({
+    success: true,
+    user: { username: user.username, displayName: user.displayName, createdAt: user.createdAt, levelsUploaded: user.levelsUploaded }
+  });
+});
+
+app.put('/api/auth/profile', (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  const user = findUserByToken(token);
+  if (!user) return res.status(401).json({ success: false, error: 'Not logged in' });
+
+  const { displayName } = req.body;
+  if (displayName !== undefined) {
+    const trimmed = displayName.trim();
+    if (trimmed.length < 1 || trimmed.length > 30) return res.status(400).json({ success: false, error: 'Display name must be 1-30 characters' });
+    user.displayName = trimmed;
+    saveUsers();
+  }
+
+  res.json({
+    success: true,
+    user: { username: user.username, displayName: user.displayName, createdAt: user.createdAt, levelsUploaded: user.levelsUploaded }
+  });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  const user = findUserByToken(token);
+  if (user) {
+    user.sessionToken = null;
+    saveUsers();
+  }
+  res.json({ success: true });
+});
+
+// ─── LEVEL ROUTES ────────────────────────────────────────────
+// 1. UPLOAD (requires auth)
+app.post('/api/levels/upload', requireAuth, (req, res) => {
+    const { name, objects } = req.body;
+    if (!name || !objects) return res.status(400).json({ success: false, error: 'Missing level information!' });
+
     const newLevel = {
-      id: levelId,
-      name: name.trim(),
-      uploaderId: uploaderId,
-      objects: objects,
-      uploadedAt: new Date().toISOString(),
-      downloads: 0
+        id: "lvl_" + levelIdCounter++,
+        name: name,
+        uploaderId: req.user.username,
+        uploaderDisplayName: req.user.displayName,
+        objects: objects,
+        downloads: 0,
+        likes: 0,
+        uploadedAt: new Date().toISOString()
     };
-    
-    data.levels.unshift(newLevel); // Add to front (most recent first)
-    
-    if (!saveLevels(data)) {
-      return res.status(500).json({ error: 'Failed to save level' });
-    }
-    
-    res.json({ success: true, id: levelId, uploaderId: uploaderId });
-  } catch (e) {
-    console.error('Upload error:', e);
-    res.status(500).json({ error: 'Server error' });
-  }
+
+    req.user.levelsUploaded = (req.user.levelsUploaded || 0) + 1;
+    saveUsers();
+    onlineLevels.unshift(newLevel);
+    saveLevels();
+    res.status(201).json({ success: true, id: newLevel.id });
 });
 
-// GET /api/levels/recent - Get recent levels
+// 2. BROWSE (with sort support)
 app.get('/api/levels/recent', (req, res) => {
-  try {
-    const limit = Math.min(parseInt(req.query.limit || 20), 100);
-    const data = loadLevels();
-    const recentLevels = data.levels.slice(0, limit).map(l => ({
-      id: l.id,
-      name: l.name,
-      uploaderId: l.uploaderId,
-      uploadedAt: l.uploadedAt,
-      downloads: l.downloads
-    }));
-    res.json({ levels: recentLevels });
-  } catch (e) {
-    console.error('Fetch recent error:', e);
-    res.status(500).json({ error: 'Server error' });
-  }
+    const sort = req.query.sort || 'recent';
+    let sorted = [...onlineLevels];
+    if (sort === 'downloads') sorted.sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
+    else if (sort === 'likes') sorted.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+    else sorted.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+    res.json({ levels: sorted });
 });
 
-// GET /api/levels/:id - Get specific level by ID
+// 3. SEARCH LEVELS (must be before :id route)
+app.get('/api/levels/search', (req, res) => {
+    const q = (req.query.q || '').trim().toLowerCase();
+    if (!q) return res.json({ levels: [] });
+    const results = onlineLevels.filter(l => l.name.toLowerCase().includes(q));
+    res.json({ levels: results });
+});
+
+// 4. FETCH SINGLE LEVEL
 app.get('/api/levels/:id', (req, res) => {
-  try {
-    const { id } = req.params;
-    const data = loadLevels();
-    const level = data.levels.find(l => l.id === id);
-    
-    if (!level) {
-      return res.status(404).json({ error: 'Level not found' });
-    }
-    
-    // Increment download count
-    level.downloads = (level.downloads || 0) + 1;
-    saveLevels(data);
-    
+    const level = onlineLevels.find(lvl => lvl.id === req.params.id);
+    if (!level) return res.status(404).json({ error: 'Level not found' });
+
+    level.downloads++;
+    saveLevels();
     res.json(level);
-  } catch (e) {
-    console.error('Fetch level error:', e);
-    res.status(500).json({ error: 'Server error' });
-  }
 });
 
-// DELETE /api/levels/:id - Delete a level (only by uploader)
-app.delete('/api/levels/:id', (req, res) => {
-  try {
-    const { id } = req.params;
-    const { uploaderId } = req.body;
-    
-    if (!uploaderId) {
-      return res.status(400).json({ error: 'uploaderId required' });
+// 5. DELETE (requires auth)
+app.delete('/api/levels/:id', requireAuth, (req, res) => {
+    const index = onlineLevels.findIndex(lvl => lvl.id === req.params.id);
+
+    if (index === -1) return res.status(404).json({ success: false, error: 'Level not found' });
+    if (onlineLevels[index].uploaderId !== req.user.username) {
+        return res.status(403).json({ success: false, error: 'Unauthorised deletion attempt!' });
     }
-    
-    const data = loadLevels();
-    const levelIndex = data.levels.findIndex(l => l.id === id);
-    
-    if (levelIndex === -1) {
-      return res.status(404).json({ error: 'Level not found' });
-    }
-    
-    const level = data.levels[levelIndex];
-    if (level.uploaderId !== uploaderId) {
-      return res.status(403).json({ error: 'Cannot delete other users\' levels' });
-    }
-    
-    data.levels.splice(levelIndex, 1);
-    saveLevels(data);
-    
+
+    onlineLevels.splice(index, 1);
+    saveLevels();
     res.json({ success: true });
-  } catch (e) {
-    console.error('Delete error:', e);
-    res.status(500).json({ error: 'Server error' });
-  }
 });
 
-// ── Routes ──────────────────────────────────────────────────────────────────
-// SPA catch-all — serve index.html for any non-asset GET
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// 6. SEARCH USERS (must be before :username route)
+app.get('/api/users/search', (req, res) => {
+    const q = (req.query.q || '').trim().toLowerCase();
+    if (!q) return res.json({ users: [] });
+    const results = users.filter(u =>
+        u.username.toLowerCase().includes(q) || (u.displayName || '').toLowerCase().includes(q)
+    ).map(u => ({
+        username: u.username,
+        displayName: u.displayName,
+        createdAt: u.createdAt,
+        levelsUploaded: u.levelsUploaded || 0
+    }));
+    res.json({ users: results });
 });
 
-// ── Boot ────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`Trigonometry Run running → http://localhost:${PORT}`);
+// 7. USER PROFILE (public)
+app.get('/api/users/:username', (req, res) => {
+    const user = findUserByUsername(req.params.username);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const uploadedLevels = onlineLevels.filter(l => l.uploaderId === user.username);
+    res.json({
+        username: user.username,
+        displayName: user.displayName,
+        createdAt: user.createdAt,
+        levelsUploaded: user.levelsUploaded || 0,
+        levels: uploadedLevels.map(l => ({ id: l.id, name: l.name, downloads: l.downloads, uploadedAt: l.uploadedAt }))
+    });
 });
+
+// 8. MY LEVELS (requires auth)
+app.get('/api/levels/mine', requireAuth, (req, res) => {
+    const myLevels = onlineLevels.filter(l => l.uploaderId === req.user.username);
+    res.json({ levels: myLevels });
+});
+
+// ─── SUGGESTIONS ─────────────────────────────────────────────
+app.post('/api/suggestions', (req, res) => {
+    const { username, text } = req.body;
+    if (!text || !text.trim()) return res.status(400).json({ success: false, error: 'Suggestion text required' });
+    if (text.trim().length > 500) return res.status(400).json({ success: false, error: 'Suggestion too long (max 500 chars)' });
+
+    const suggestion = {
+        id: 'sug_' + Date.now(),
+        username: (username && username.trim()) || 'Anonymous',
+        text: text.trim(),
+        createdAt: new Date().toISOString()
+    };
+    suggestions.unshift(suggestion);
+    saveSuggestions();
+    res.status(201).json({ success: true });
+});
+
+app.get('/api/suggestions', (req, res) => {
+    res.json({ suggestions: suggestions.slice(0, 50) });
+});
+
+app.listen(PORT, () => console.log(`✓ Geometry Dash Backend API running on port ${PORT}`));

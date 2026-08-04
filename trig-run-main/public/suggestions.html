@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suggestions - Trigonometry Run</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:linear-gradient(160deg,#050510,#0a0a28 60%,#0d0d1e);font-family:'Arial Black',sans-serif;color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 20px;}
+    h1{font-size:36px;letter-spacing:5px;text-shadow:0 0 16px cyan;margin-bottom:6px;}
+    .sub{color:#445;font-size:12px;letter-spacing:2px;margin-bottom:30px;}
+    .back{color:#00eaff;font-size:12px;letter-spacing:1px;text-decoration:none;border:1px solid rgba(0,200,255,.3);padding:8px 20px;border-radius:4px;transition:all .15s;margin-bottom:30px;}
+    .back:hover{background:rgba(0,200,255,.1);border-color:cyan;}
+    .form{display:flex;flex-direction:column;gap:10px;width:100%;max-width:500px;margin-bottom:40px;}
+    .input{background:rgba(0,0,0,.3);border:1px solid #1a1a30;color:#fff;font-size:13px;font-family:'Arial Black',sans-serif;padding:10px 14px;border-radius:4px;outline:none;letter-spacing:1px;transition:border-color .15s;}
+    .input:focus{border-color:#00eaff;}
+    .input::placeholder{color:#334;}
+    textarea.input{resize:vertical;min-height:80px;}
+    .btn{background:linear-gradient(135deg,#00eaff,#0055ff);color:#fff;font-size:16px;font-family:'Arial Black',sans-serif;padding:12px 40px;border:none;cursor:pointer;letter-spacing:3px;clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);transition:transform .1s,filter .1s;align-self:center;}
+    .btn:hover{transform:scale(1.05);filter:brightness(1.3);}
+    .btn:disabled{opacity:.5;cursor:not-allowed;transform:none;filter:none;}
+    .msg{font-size:12px;letter-spacing:1px;min-height:18px;text-align:center;}
+    .msg.ok{color:#0f8;}
+    .msg.err{color:#f44;}
+    h2{font-size:20px;letter-spacing:3px;color:#00eaff;margin-bottom:16px;text-align:center;}
+    .list{width:100%;max-width:500px;display:flex;flex-direction:column;gap:10px;}
+    .sug{background:rgba(0,200,255,.04);border:1px solid rgba(0,200,255,.12);border-radius:8px;padding:12px;}
+    .sug-user{color:#00eaff;font-size:10px;letter-spacing:1px;margin-bottom:4px;}
+    .sug-text{color:#ccc;font-size:12px;letter-spacing:1px;line-height:1.5;}
+    .sug-date{color:#445;font-size:9px;letter-spacing:1px;margin-top:6px;}
+    .empty{color:#445;font-size:12px;letter-spacing:1px;text-align:center;padding:30px 0;}
+  </style>
+</head>
+<body>
+  <a href="trig-run.html" class="back">← BACK TO GAME</a>
+  <h1>SUGGESTIONS</h1>
+  <p class="sub">HAVE AN IDEA? LET US KNOW!</p>
+
+  <div class="form">
+    <input type="text" id="sug-name" class="input" placeholder="Your name (optional)" maxlength="20">
+    <textarea id="sug-text" class="input" placeholder="Your suggestion..." maxlength="500"></textarea>
+    <div id="sug-msg" class="msg"></div>
+    <button class="btn" id="sug-btn" onclick="submitSuggestion()">SUBMIT</button>
+  </div>
+
+  <h2>RECENT SUGGESTIONS</h2>
+  <div id="sug-list" class="list">
+    <div class="empty">Loading...</div>
+  </div>
+
+  <script>
+    function loadSuggestions(){
+      fetch('/api/suggestions')
+        .then(r=>r.json())
+        .then(d=>{
+          const list=document.getElementById('sug-list');
+          if(!d.suggestions||d.suggestions.length===0){
+            list.innerHTML='<div class="empty">No suggestions yet. Be the first!</div>';
+            return;
+          }
+          list.innerHTML='';
+          d.suggestions.forEach(s=>{
+            const el=document.createElement('div');
+            el.className='sug';
+            const date=new Date(s.createdAt).toLocaleDateString();
+            el.innerHTML=`
+              <div class="sug-user">${s.username}</div>
+              <div class="sug-text">${s.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+              <div class="sug-date">${date}</div>
+            `;
+            list.appendChild(el);
+          });
+        })
+        .catch(()=>{
+          document.getElementById('sug-list').innerHTML='<div class="empty">Failed to load suggestions</div>';
+        });
+    }
+
+    function submitSuggestion(){
+      const name=document.getElementById('sug-name').value.trim();
+      const text=document.getElementById('sug-text').value.trim();
+      const msg=document.getElementById('sug-msg');
+      const btn=document.getElementById('sug-btn');
+
+      if(!text){ msg.className='msg err'; msg.textContent='Please enter a suggestion'; return; }
+      if(text.length>500){ msg.className='msg err'; msg.textContent='Too long (max 500 chars)'; return; }
+
+      btn.disabled=true;
+      btn.textContent='SENDING...';
+
+      fetch('/api/suggestions',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({username:name||'Anonymous',text:text})
+      })
+        .then(r=>r.json())
+        .then(d=>{
+          btn.disabled=false;
+          btn.textContent='SUBMIT';
+          if(d.success){
+            msg.className='msg ok';
+            msg.textContent='✓ Suggestion submitted! Thanks!';
+            document.getElementById('sug-text').value='';
+            loadSuggestions();
+          } else {
+            msg.className='msg err';
+            msg.textContent=d.error||'Failed to submit';
+          }
+        })
+        .catch(e=>{
+          btn.disabled=false;
+          btn.textContent='SUBMIT';
+          msg.className='msg err';
+          msg.textContent='Error: '+e.message;
+        });
+    }
+
+    loadSuggestions();
+  </script>
+</body>
+</html>

@@ -16,7 +16,7 @@
   <div id="hud-mode"></div>
   <!-- Bug fix: element was styled in CSS but never existed in HTML; also fixes
        the gameDraw null-ref that tried to dynamically inject an <a> via textContent -->
-  <a id="homepage-link" href="/">← HOME</a>
+  <a id="homepage-link" href="https://games-of-various-origins.onrender.com">← HOME</a>
   <div id="hud-pct"><div id="hud-pct-fill"></div></div>
   <div id="hud-pct-label">0%</div>
 </div>
@@ -30,6 +30,66 @@
     <button class="tbtn" onclick="openLevelSelect()">► PLAY</button>
     <button class="tbtn sec" onclick="openBrowseLevels()">⬇ BROWSE LEVELS</button>
     <button class="tbtn sec" onclick="openEditorFromTitle()">✎ LEVEL EDITOR</button>
+    <a href="suggestions.html" class="tbtn sec" style="text-decoration:none;text-align:center;display:inline-block;">💡 SUGGESTIONS</a>
+  </div>
+  <div id="title-user-bar">
+    <span id="title-user-display"></span>
+    <button class="ubtn" id="title-auth-btn" onclick="openAuthModal()">LOGIN</button>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div id="auth-modal" class="modal" style="display:none;">
+  <div class="modal-content auth-modal-content">
+    <div id="auth-tabs">
+      <button class="auth-tab active" id="auth-tab-login" onclick="switchAuthTab('login')">LOGIN</button>
+      <button class="auth-tab" id="auth-tab-register" onclick="switchAuthTab('register')">REGISTER</button>
+    </div>
+    <div id="auth-form-login" class="auth-form">
+      <input type="text" id="auth-login-user" class="auth-input" placeholder="Username" maxlength="20" autocomplete="username">
+      <input type="password" id="auth-login-pass" class="auth-input" placeholder="Password" maxlength="100" autocomplete="current-password">
+      <div id="auth-login-error" class="auth-error"></div>
+      <button class="tbtn" onclick="doLogin()">LOGIN</button>
+    </div>
+    <div id="auth-form-register" class="auth-form" style="display:none;">
+      <input type="text" id="auth-reg-user" class="auth-input" placeholder="Username (3-20 chars)" maxlength="20" autocomplete="username">
+      <input type="password" id="auth-reg-pass" class="auth-input" placeholder="Password (min 4 chars)" maxlength="100" autocomplete="new-password">
+      <input type="password" id="auth-reg-pass2" class="auth-input" placeholder="Confirm password" maxlength="100" autocomplete="new-password">
+      <div id="auth-reg-error" class="auth-error"></div>
+      <button class="tbtn" onclick="doRegister()">REGISTER</button>
+    </div>
+    <button class="modal-btn" onclick="closeAuthModal()" style="margin-top:8px;">CLOSE</button>
+  </div>
+</div>
+
+<!-- PROFILE SCREEN -->
+<div id="profile-screen" class="screen">
+  <canvas id="profile-stars"></canvas>
+  <div id="profile-content">
+    <h2>PROFILE</h2>
+    <div id="profile-card">
+      <div id="profile-avatar"></div>
+      <div id="profile-info">
+        <div id="profile-username"></div>
+        <div id="profile-display"></div>
+        <div id="profile-joined"></div>
+        <div id="profile-stats"></div>
+      </div>
+    </div>
+    <div id="profile-edit" style="display:none;">
+      <label class="profile-label">Display Name</label>
+      <input type="text" id="profile-display-input" class="auth-input" maxlength="30">
+      <button class="tbtn" onclick="saveProfile()" style="min-width:160px;">SAVE</button>
+      <div id="profile-msg" class="auth-error"></div>
+    </div>
+    <div id="profile-my-levels">
+      <h3>MY LEVELS</h3>
+      <div id="profile-levels-grid"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="tbtn sec" onclick="closeProfile()">← BACK</button>
+      <button class="tbtn sec red" id="profile-logout-btn" onclick="doLogout()" style="display:none;">LOGOUT</button>
+    </div>
   </div>
 </div>
 
@@ -50,9 +110,38 @@
   <div id="bl-content">
     <h2>BROWSE LEVELS</h2>
     <p>COMMUNITY CREATIONS</p>
+    <div id="bl-toolbar">
+      <div id="bl-sort-group">
+        <button class="bl-sort-btn active" onclick="setBrowseSort('recent',this)">🕐 Recent</button>
+        <button class="bl-sort-btn" onclick="setBrowseSort('downloads',this)">📥 Most Downloaded</button>
+        <button class="bl-sort-btn" onclick="setBrowseSort('likes',this)">⭐ Most Liked</button>
+      </div>
+      <div id="bl-search-group">
+        <button class="bl-search-btn" onclick="openSearchScreen('levels')">🔍 Search Levels</button>
+        <button class="bl-search-btn" onclick="openSearchScreen('users')">👤 Search Users</button>
+      </div>
+    </div>
     <div id="bl-grid"></div>
     <div id="bl-loading" style="display:none;text-align:center;padding:20px;">Loading levels...</div>
     <button class="tbtn sec bl-back" onclick="closeBrowseLevels()">← BACK</button>
+  </div>
+</div>
+
+<!-- SEARCH SCREEN -->
+<div id="search-screen" class="screen">
+  <canvas id="search-stars"></canvas>
+  <div id="search-content">
+    <button class="tbtn sec search-back" onclick="closeSearchScreen()">← BACK</button>
+    <h2 id="search-title">SEARCH LEVELS</h2>
+    <input type="text" id="search-input" class="auth-input" placeholder="Type to search..." autocomplete="off" />
+    <div id="search-tabs">
+      <button class="search-tab active" onclick="switchSearchTab('levels',this)">🔍 Levels</button>
+      <button class="search-tab" onclick="switchSearchTab('users',this)">👤 Users</button>
+    </div>
+    <div id="search-levels-grid" class="bl-grid"></div>
+    <div id="search-users-grid" style="display:none;"></div>
+    <div id="search-loading" style="display:none;text-align:center;padding:20px;">Searching...</div>
+    <p id="search-empty" style="display:none;"></p>
   </div>
 </div>
 
@@ -125,6 +214,7 @@
   <div id="editor-topbar">
     <h3>✎ EDITOR</h3>
     <button class="etbtn active" id="etool-spike"       onclick="setEdTool('spike')">▲ SPIKE</button>
+    <button class="etbtn"        id="etool-halfspike"   onclick="setEdTool('halfspike')">▲½ HALF SPIKE</button>
     <button class="etbtn"        id="etool-block"       onclick="setEdTool('block')">■ BLOCK</button>
     <button class="etbtn"        id="etool-slab"        onclick="setEdTool('slab')">▬ SLAB</button>
     <button class="etbtn"        id="etool-orb"         onclick="setEdTool('orb')">● ORB</button>
@@ -163,6 +253,6 @@
 <canvas id="gameCanvas"></canvas>
 <div id="instructions"><b>SPACE/CLICK</b> jump / thrust &nbsp;|&nbsp; <b>R</b> restart &nbsp;|&nbsp; <b>ESC</b> pause</div>
 
-<script src="game.js"></script>
+<script src="game.js?v=5"></script>
 </body>
 </html>
