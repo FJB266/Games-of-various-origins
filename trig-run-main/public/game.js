@@ -44,6 +44,20 @@ let selectedIcon = 0, playerColor1 = '#00eaff', playerColor2 = '#003355';
 let customLevelObjects = [];
 let lastTime = null;
 
+// ─── MOD CHEATS (elder+) ─────────────────────────────────────
+const MOD_CHEATS = {
+  noclip:     { label:'NOCLIP',     on:false },
+  invincible: { label:'INVINCIBLE', on:false },
+  autojump:   { label:'AUTO JUMP',  on:false }
+};
+let modTimeScale = 1, modJumpForce = 1, modFrom = 'title';
+function modCheatOn(key){ return !!(MOD_CHEATS[key] && MOD_CHEATS[key].on); }
+function modCheatActive(){ return modCheatOn('noclip')||modCheatOn('invincible')||modCheatOn('autojump')||modTimeScale!==1||modJumpForce!==1; }
+function resetModCheats(){
+  for(const k in MOD_CHEATS) MOD_CHEATS[k].on=false;
+  modTimeScale=1; modJumpForce=1;
+}
+
 // ─── AUTH STATE ──────────────────────────────────────────────
 let authToken = localStorage.getItem('trun_auth_token') || '';
 let currentUser = null;
@@ -96,6 +110,7 @@ function updateTitleUserBar() {
     btn.onclick = openAuthModal;
   }
   if (adminBtn) adminBtn.style.display = hasRole(currentUser, 'elder') ? 'inline-block' : 'none';
+  updateModMenuVisibility();
 }
 
 function restoreSession() {
@@ -188,6 +203,7 @@ function doLogout() {
   authToken = '';
   currentUser = null;
   localStorage.removeItem('trun_auth_token');
+  resetModCheats();
   updateTitleUserBar();
   closeProfile();
 }
@@ -2739,6 +2755,7 @@ function gameDraw(){
 const rOver=(ax,ay,aw,ah,bx,by,bw,bh)=>ax<bx+bw&&ax+aw>bx&&ay<by+bh&&ay+ah>by;
 
 function checkCollisions(){
+  if(modCheatOn('noclip')) return null; // MOD: pass through everything
   const sh=4, px=player.x+sh, py=player.y+sh, ps=player.size-sh*2;
   for(const o of levelObjects){
     if(o.x > camX+W+120 || o.x+(o.w||GRID) < camX-120) continue;
@@ -2761,22 +2778,22 @@ function checkCollisions(){
       } else {            // point left
         hw=hh0; hh=hw0; hy=o.y+(o.h-hh)/2; hx=o.x+inset;
       }
-      if(rOver(px,py,ps,ps,hx,hy,hw,hh)) return 'die';
+      if(rOver(px,py,ps,ps,hx,hy,hw,hh) && !modCheatOn('invincible')) return 'die';
     }
     else if(o.type==='block'||o.type==='slab'){
       if(rOver(px,py,ps,ps,o.x,o.y,o.w,o.h)){
         if(player.prevY+player.size <= o.y+10){ player.y=o.y-player.size; player.vy=0; player.onGround=true; }
-        else return 'die';
+        else if(!modCheatOn('invincible')) return 'die';
       }
     }
     else if(o.type==='orb'){
       if(rOver(px,py,ps,ps,o.x,o.y,o.w,o.h)&&jumpHeld){
-        player.vy=JUMP_FORCE; spawnParticles(150+player.size/2,player.y+player.size/2,8,COL.orb);
+        player.vy=JUMP_FORCE*modJumpForce; spawnParticles(150+player.size/2,player.y+player.size/2,8,COL.orb);
       }
     }
     else if(o.type==='jumppad'){
       if(rOver(px,py,ps,ps,o.x,o.y,o.w,o.h)){
-        player.vy=JUMP_FORCE*1.25; player.onGround=false;
+        player.vy=JUMP_FORCE*1.25*modJumpForce; player.onGround=false;
         spawnParticles(150+player.size/2,player.y+player.size,8,'#ffaa00');
       }
     }
@@ -2796,19 +2813,23 @@ function checkCollisions(){
 
 // ─── UPDATE ──────────────────────────────────────────────────
 function update(dt){
+  dt *= modTimeScale; // MOD: time-scale cheat
   player.prevY = player.y; // track the REAL previous Y (dt-aware) for reliable top-vs-side collision checks
   if(gameMode==='ship'){
-    if(jumpHeld) player.vy+=SHIP_THRUST*dt;
+    if(jumpHeld || modCheatOn('autojump')) player.vy+=SHIP_THRUST*dt*modJumpForce;
     else         player.vy+=SHIP_GRAV*dt;
     player.vy = Math.max(-SHIP_MAXVY, Math.min(SHIP_MAXVY, player.vy));
     player.y += player.vy*dt;
     player.onGround = false;
-    if(player.y<=0){ die(); return; }
+    if(player.y<=0){
+      if(modCheatOn('noclip')||modCheatOn('invincible')){ player.y=0; player.vy=0; }
+      else { die(); return; }
+    }
     if(player.y+player.size>=GROUND){ player.y=GROUND-player.size; player.vy=0; player.onGround=true; }
   } else {
     if(jumpBuffer>0) jumpBuffer--;
-    if((jumpBuffer>0||jumpHeld) && player.onGround){
-      player.vy=JUMP_FORCE; player.onGround=false; jumpBuffer=0;
+    if((jumpBuffer>0||jumpHeld||modCheatOn('autojump')) && player.onGround){
+      player.vy=JUMP_FORCE*modJumpForce; player.onGround=false; jumpBuffer=0;
       spawnParticles(150+player.size/2, player.y+player.size, 5, playerColor1);
     }
     player.vy += GRAVITY*dt;
@@ -2859,6 +2880,11 @@ function die(){
 
 function win(){
   currentLevelBest[currentLevelId] = 100;
+  // MOD: completing a level verifies it, unlocking upload
+  if(currentLevelId.indexOf('custom_')===0){
+    const idx = parseInt(currentLevelId.slice(7),10);
+    if(savedLevels[idx]){ savedLevels[idx].verified = true; }
+  }
   saveGame();
   player.dead = true;
   gameState = 'dead';
@@ -2960,7 +2986,7 @@ function renderLevelSelect(){
   savedLevels.forEach((lvl,i)=>{
     const cb=currentLevelBest['custom_'+i]||0;
     const card=mkCard(
-      `<span class="ls-card-badge custom">CUSTOM</span><div class="ls-card-name">${lvl.name}</div><div class="ls-card-sub">${lvl.objects.length} OBJECTS</div>${cb?`<div class="ls-card-best">★ BEST: ${cb}%</div>`:'<div class="ls-card-sub">NOT PLAYED YET</div>'}<button class="ls-card-del" title="Delete">🗑</button>`,
+      `<span class="ls-card-badge custom">CUSTOM</span><div class="ls-card-name">${lvl.name}${lvl.verified?' <span style="color:#0f8;font-size:9px;" title="Verified — ready to upload">✓</span>':''}</div><div class="ls-card-sub">${lvl.objects.length} OBJECTS</div>${cb?`<div class="ls-card-best">★ BEST: ${cb}%</div>`:'<div class="ls-card-sub">NOT PLAYED YET</div>'}<button class="ls-card-del" title="Delete">🗑</button>`,
       ''
     );
     card.querySelector('.ls-card-del').addEventListener('click', e=>{
@@ -3292,7 +3318,12 @@ function playCustom(){
   const name=(currentEditorLevelName||prompt('Name your level:','My Level')||'My Level').trim()||'My Level';
   currentEditorLevelName=name;
   const ei=savedLevels.findIndex(l=>l.name===name);
-  if(ei>=0) savedLevels[ei].objects=JSON.parse(JSON.stringify(customLevelObjects));
+  if(ei>=0){
+    // MOD: edits invalidate verification — must re-verify before uploading
+    const prev=JSON.stringify(savedLevels[ei].objects);
+    savedLevels[ei].objects=JSON.parse(JSON.stringify(customLevelObjects));
+    if(JSON.stringify(customLevelObjects)!==prev) savedLevels[ei].verified=false;
+  }
   else savedLevels.push({name,objects:JSON.parse(JSON.stringify(customLevelObjects))});
   const idx=savedLevels.findIndex(l=>l.name===name);
   currentLevelId='custom_'+idx;
@@ -3336,6 +3367,13 @@ function uploadLevel(){
   const trimmed=name.trim();
   if(trimmed.length===0) return;
   if(trimmed.length>100){ alert('Level name too long (max 100 chars)'); return; }
+
+  // MOD: levels must be VERIFIED (completed) before they can be uploaded
+  const vIdx=savedLevels.findIndex(l=>l.name===trimmed);
+  if(vIdx<0 || !savedLevels[vIdx].verified){
+    alert('⚠ This level must be VERIFIED before uploading.\n\nTest play the level and COMPLETE it to verify, then upload under the same name.\n(Admins/Elder Mods: use VERIFY HACK in the MOD MENU.)');
+    return;
+  }
   
   // 1. Compression: encode all properties so rotation, portals, and deco colors survive the round-trip
   const rawString = edObjects.map(obj => {
@@ -3796,11 +3834,182 @@ function loop(ts){
   else if(gameState==='dead')    { gameDraw(); }
 }
 
+// ─── MOD MENU UI (elder+) ────────────────────────────────────
+function buildModMenuUI(){
+  if(document.getElementById('mod-screen')) return;
+
+  // Title-screen button, next to USER MANAGEMENT
+  const adminBtn=document.getElementById('title-admin-btn');
+  if(adminBtn){
+    const tbtn=document.createElement('button');
+    tbtn.className='tbtn sec';
+    tbtn.id='title-mod-btn';
+    tbtn.textContent='⌬ MOD MENU';
+    tbtn.onclick=()=>openModMenuFrom('title');
+    tbtn.style.display='none';
+    adminBtn.parentNode.insertBefore(tbtn, adminBtn.nextSibling);
+  }
+
+  // Pause-menu button, after RESTART
+  const pauseMain=document.getElementById('pause-main');
+  if(pauseMain){
+    const restartBtn=pauseMain.querySelector('button[onclick="restartGame()"]');
+    const pbtn=document.createElement('button');
+    pbtn.className='pbtn';
+    pbtn.id='pause-mod-btn';
+    pbtn.textContent='⌬ MOD MENU';
+    pbtn.onclick=()=>openModMenuFrom('pause');
+    pbtn.style.display='none';
+    pauseMain.insertBefore(pbtn, restartBtn ? restartBtn.nextSibling : null);
+  }
+
+  // Overlay
+  const scr=document.createElement('div');
+  scr.className='screen';
+  scr.id='mod-screen';
+  scr.style.background='linear-gradient(160deg,#050510,#150a2e 55%,#0d0d1e)';
+  scr.innerHTML=
+    '<div id="mod-content" style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;width:100%;max-width:520px;gap:6px;">'+
+      '<h2 style="font-size:28px;color:#c9f;letter-spacing:5px;text-shadow:0 0 16px #aa44ff;text-align:center;">MOD MENU</h2>'+
+      '<p style="color:#556;font-size:10px;letter-spacing:2px;text-align:center;">ADMIN &amp; ELDER MOD TOOLS</p>'+
+      '<div id="mod-status" style="color:#0f8;font-size:11px;letter-spacing:1px;min-height:16px;text-align:center;margin:2px 0;"></div>'+
+      '<div id="mod-controls" style="width:100%;display:flex;flex-direction:column;align-items:center;"></div>'+
+      '<div id="mod-actions" style="width:100%;display:flex;flex-direction:column;align-items:center;"></div>'+
+      '<div style="display:flex;gap:8px;margin-top:12px;">'+
+        '<button class="tbtn sec" onclick="modDisableAll()" style="min-width:150px;">✕ ALL OFF</button>'+
+        '<button class="tbtn sec" onclick="closeModMenu()" style="min-width:150px;">← BACK</button>'+
+      '</div>'+
+    '</div>';
+  document.body.appendChild(scr);
+}
+
+function renderModMenu(){
+  const status=document.getElementById('mod-status');
+  if(status) status.textContent='';
+  const ctl=document.getElementById('mod-controls');
+  const act=document.getElementById('mod-actions');
+  if(!ctl||!act) return;
+  ctl.innerHTML=''; act.innerHTML='';
+
+  ['noclip','invincible','autojump'].forEach(key=>{
+    const on=MOD_CHEATS[key].on;
+    const b=document.createElement('button');
+    b.className='pbtn';
+    b.style.minWidth='260px';
+    b.textContent=MOD_CHEATS[key].label+': '+(on?'ON':'OFF');
+    b.style.borderColor=on?'#0f8':'rgba(0,200,255,.3)';
+    b.style.color=on?'#0f8':'#fff';
+    b.onclick=()=>{ MOD_CHEATS[key].on=!on; renderModMenu(); };
+    ctl.appendChild(b);
+  });
+  ctl.appendChild(modStepperRow('TIME SCALE','time',()=>modTimeScale.toFixed(2)+'x'));
+  ctl.appendChild(modStepperRow('JUMP FORCE','jump',()=>modJumpForce.toFixed(1)+'x'));
+
+  act.appendChild(modActionBtn('⚡ INSTANT COMPLETE', modInstantComplete, true));
+  act.appendChild(modActionBtn('✓ VERIFY HACK', modVerifyHack));
+  act.appendChild(modActionBtn('↺ RESET ATTEMPTS', modResetAttempts));
+}
+
+function modStepperRow(label,id,fmt){
+  const row=document.createElement('div');
+  row.style.cssText='display:flex;align-items:center;gap:8px;justify-content:center;margin:2px 0;';
+  const lbl=document.createElement('span');
+  lbl.textContent=label+':';
+  lbl.style.cssText='color:#fff;font-size:12px;letter-spacing:1px;min-width:104px;text-align:right;';
+  const minus=document.createElement('button');
+  minus.className='pbtn'; minus.textContent='−'; minus.style.minWidth='44px'; minus.style.padding='6px 0';
+  minus.onclick=()=>modStep(id,-1);
+  const val=document.createElement('span');
+  val.textContent=fmt();
+  val.style.cssText='color:#c9f;font-size:14px;min-width:64px;text-align:center;';
+  const plus=document.createElement('button');
+  plus.className='pbtn'; plus.textContent='+'; plus.style.minWidth='44px'; plus.style.padding='6px 0';
+  plus.onclick=()=>modStep(id,1);
+  row.appendChild(lbl); row.appendChild(minus); row.appendChild(val); row.appendChild(plus);
+  return row;
+}
+
+function modStep(id,dir){
+  if(id==='time') modTimeScale=Math.min(2,Math.max(0.25,Math.round((modTimeScale+dir*0.25)*100)/100));
+  else if(id==='jump') modJumpForce=Math.min(5,Math.max(0.5,Math.round((modJumpForce+dir*0.5)*100)/100));
+  renderModMenu();
+}
+
+function modActionBtn(label,fn,danger){
+  const b=document.createElement('button');
+  b.className='pbtn';
+  b.textContent=label;
+  b.style.minWidth='260px';
+  b.onclick=fn;
+  if(danger){ b.style.borderColor='rgba(255,80,80,.4)'; b.style.color='#f88'; }
+  return b;
+}
+
+function openModMenuFrom(src){
+  if(!hasRole(currentUser,'elder')) return;
+  modFrom=src;
+  hideAll();
+  document.getElementById('mod-screen').classList.add('show');
+  renderModMenu();
+}
+function closeModMenu(){
+  hideAll();
+  document.getElementById('mod-screen').classList.remove('show');
+  if(modFrom==='pause'){
+    document.getElementById('pause-screen').classList.add('show');
+    showPanel('pause-main');
+    if(gameState==='playing'||gameState==='dead') gameState='paused';
+  } else {
+    document.getElementById('title-screen').classList.add('show');
+    if(gameState==='playing') gameState='title';
+  }
+}
+function updateModMenuVisibility(){
+  const show=hasRole(currentUser,'elder');
+  const t=document.getElementById('title-mod-btn');
+  const p=document.getElementById('pause-mod-btn');
+  if(t) t.style.display=show?'inline-block':'none';
+  if(p) p.style.display=show?'block':'none';
+}
+function modDisableAll(){
+  resetModCheats();
+  renderModMenu();
+}
+function modInstantComplete(){
+  hideAll();
+  document.getElementById('mod-screen').classList.remove('show');
+  document.getElementById('hud').classList.add('show');
+  gameState='playing'; lastTime=null;
+  win();
+}
+function modVerifyHack(){
+  let done=false, name='';
+  if(currentLevelId.indexOf('custom_')===0){
+    const idx=parseInt(currentLevelId.slice(7),10);
+    if(savedLevels[idx]){ savedLevels[idx].verified=true; done=true; name=savedLevels[idx].name; }
+  }
+  if(currentEditorLevelName){
+    const ei=savedLevels.findIndex(l=>l.name===currentEditorLevelName);
+    if(ei>=0){ savedLevels[ei].verified=true; done=true; name=savedLevels[ei].name; }
+  }
+  saveGame();
+  const st=document.getElementById('mod-status');
+  if(st) st.textContent=done ? ('✓ VERIFIED "'+escapeHtml(name||'level')+'" — UPLOAD UNLOCKED') : '⚠ No custom level to verify';
+}
+function modResetAttempts(){
+  attempts=0;
+  const el=document.getElementById('hud-attempts');
+  if(el) el.textContent='Attempt '+attempts;
+  const st=document.getElementById('mod-status');
+  if(st) st.textContent='Attempts reset to 0';
+}
+
 // ─── BOOT ────────────────────────────────────────────────────
 loadGame();
 generateBuiltinLevel();
 resetPlayer();
 restoreSession();
+buildModMenuUI();
 updateTitleUserBar();
 document.getElementById('search-input').addEventListener('input',()=>{
   clearTimeout(searchDebounce);
